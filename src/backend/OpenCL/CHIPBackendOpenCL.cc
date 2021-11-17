@@ -110,6 +110,50 @@ void CHIPDeviceOpenCL::populateDeviceProperties_() {
 void CHIPDeviceOpenCL::reset() { UNIMPLEMENTED(); }
 // CHIPEventOpenCL
 // ************************************************************************
+void CHIPEventOpenCL::recordStream(CHIPQueue *chip_queue_) {
+  auto q = (CHIPQueueOpenCL *)chip_queue_;
+  auto LastEvent = q->LastEvent;
+  std::lock_guard<std::mutex> Lock(mtx);
+
+  event_status = EVENT_STATUS_RECORDING;
+
+  if (cl_event != nullptr) {
+    cl_uint refc = cl_event->getInfo<CL_EVENT_REFERENCE_COUNT>();
+    logDebug("removing old event, refc: {}\n", refc);
+
+    delete cl_event;
+  }
+
+  cl_event = new cl::Event();
+
+  if (LastEvent == nullptr) {
+    cl::Event MarkerEvent;
+    int err = q->get()->enqueueMarkerWithWaitList(nullptr, &MarkerEvent);
+    if (err) {
+      logError("enqueueMarkerWithWaitList FAILED with {}\n", err);
+      // return false;
+    } else {
+      LastEvent = MarkerEvent();
+      clRetainEvent(LastEvent);
+    }
+  }
+
+  // logDebug("record Event: {} on Queue: {}\n", (void *)(LastEvent),
+  //          (void *)(Queue()));
+
+  // cl_uint refc1, refc2;
+  // int err =
+  //     ::clGetEventInfo(LastEvent, CL_EVENT_REFERENCE_COUNT, 4, &refc1, NULL);
+  // assert(err == CL_SUCCESS);
+  // // can be >1 because recordEvent can be called >1 on the same event
+  // assert(refc1 >= 1);
+
+  // return event->recordStream(this, LastEvent);
+
+  // err = ::clGetEventInfo(LastEvent, CL_EVENT_REFERENCE_COUNT, 4, &refc2,
+  // NULL); assert(err == CL_SUCCESS); assert(refc2 >= 2); assert(refc2 ==
+  // (refc1 + 1));
+}
 // CHIPModuleOpenCL
 //*************************************************************************
 void CHIPModuleOpenCL::compile(CHIPDevice *chip_dev_) {
@@ -284,7 +328,6 @@ hipError_t CHIPQueueOpenCL::memCopy(void *dst, const void *src, size_t size) {
   std::lock_guard<std::mutex> Lock(mtx);
   logDebug("clSVMmemcpy {} -> {} / {} B\n", src, dst, size);
   cl_event ev = nullptr;
-  auto LastEvent = ev;
   int retval = ::clEnqueueSVMMemcpy(cl_q->get(), CL_FALSE, dst, src, size, 0,
                                     nullptr, &ev);
   CHIPERR_CHECK_LOG_AND_THROW(retval, CL_SUCCESS, hipErrorRuntimeMemory);

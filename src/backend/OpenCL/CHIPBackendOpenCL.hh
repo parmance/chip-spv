@@ -117,6 +117,7 @@ class CHIPQueueOpenCL : public CHIPQueue {
   cl::CommandQueue *cl_q;
 
  public:
+  cl_event LastEvent;
   CHIPQueueOpenCL() = delete;  // delete default constructor
   CHIPQueueOpenCL(const CHIPQueueOpenCL &) = delete;
   CHIPQueueOpenCL(CHIPDevice *chip_device);
@@ -170,7 +171,13 @@ class CHIPEventOpenCL : public CHIPEvent {
   cl::Event *cl_event;
 
  public:
-  void recordStream(CHIPQueue *chip_queue_) override { UNIMPLEMENTED(); };
+  CHIPEventOpenCL(CHIPContextOpenCL *ctx_, unsigned flags)
+      : CHIPEvent(ctx_, CHIPEventType{flags}), cl_event() {}
+
+  ~CHIPEventOpenCL() {
+    if (cl_event) delete cl_event;
+  }
+  void recordStream(CHIPQueue *chip_queue_) override;
   bool wait() override { UNIMPLEMENTED(true); };
   bool isFinished() override { UNIMPLEMENTED(true); };
   float getElapsedTime(CHIPEvent *other) override { UNIMPLEMENTED(true); };
