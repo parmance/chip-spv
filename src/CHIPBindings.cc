@@ -239,7 +239,9 @@ hipError_t hipDeviceGetAttribute(int *pi, hipDeviceAttribute_t attr,
 hipError_t hipGetDeviceProperties(hipDeviceProp_t *prop, int deviceId) {
   CHIP_TRY
   CHIPInitialize();
+  NULLCHECK(prop);
   ERROR_CHECK_DEVNUM(deviceId);
+
   Backend->getDevices()[deviceId]->copyDeviceProperties(prop);
 
   RETURN(hipSuccess);
@@ -247,7 +249,7 @@ hipError_t hipGetDeviceProperties(hipDeviceProp_t *prop, int deviceId) {
 }
 
 hipError_t hipDeviceGetLimit(size_t *pValue, enum hipLimit_t limit) {
-  UNIMPLEMENTED(hipSuccess);
+  UNIMPLEMENTED(hipErrorNotSupported);
   //  CHIP_TRY
   //  CHIPInitialize();
   //  ERROR_IF((pValue == nullptr), hipErrorInvalidValue);
@@ -270,8 +272,9 @@ hipError_t hipDeviceGetLimit(size_t *pValue, enum hipLimit_t limit) {
 hipError_t hipDeviceGetName(char *name, int len, hipDevice_t device) {
   CHIP_TRY
   CHIPInitialize();
-  ERROR_CHECK_DEVNUM(device);
   NULLCHECK(name);
+  ERROR_CHECK_DEVNUM(device);
+
   std::string dev_name = (Backend->getDevices()[device])->getName();
 
   size_t namelen = dev_name.size();
@@ -279,27 +282,26 @@ hipError_t hipDeviceGetName(char *name, int len, hipDevice_t device) {
   memcpy(name, dev_name.data(), namelen);
   name[namelen] = 0;
   RETURN(hipSuccess);
+
   CHIP_CATCH
 }
 
 hipError_t hipDeviceTotalMem(size_t *bytes, hipDevice_t device) {
   CHIP_TRY
   CHIPInitialize();
+  NULLCHECK(bytes);
   ERROR_CHECK_DEVNUM(device);
-  if (bytes == nullptr) {
-    CHIPERR_LOG_AND_THROW(
-        "hipDeviceTotalMem was passed a null pointer for returning size",
-        hipErrorInvalidValue);
-  }
 
   if (bytes) *bytes = (Backend->getDevices()[device])->getGlobalMemSize();
   RETURN(hipSuccess);
+
   CHIP_CATCH
 }
 
 hipError_t hipDeviceSetCacheConfig(hipFuncCache_t cacheConfig) {
   CHIP_TRY
   CHIPInitialize();
+
   Backend->getActiveDevice()->setCacheConfig(cacheConfig);
 
   RETURN(hipSuccess);
@@ -309,32 +311,43 @@ hipError_t hipDeviceSetCacheConfig(hipFuncCache_t cacheConfig) {
 hipError_t hipDeviceGetCacheConfig(hipFuncCache_t *cacheConfig) {
   CHIP_TRY
   CHIPInitialize();
+  NULLCHECK(cacheConfig);
 
   if (cacheConfig) *cacheConfig = Backend->getActiveDevice()->getCacheConfig();
   RETURN(hipSuccess);
+
   CHIP_CATCH
 }
 
 hipError_t hipDeviceGetSharedMemConfig(hipSharedMemConfig *pConfig) {
   CHIP_TRY
   CHIPInitialize();
+  NULLCHECK(pConfig);
+
   if (pConfig) *pConfig = Backend->getActiveDevice()->getSharedMemConfig();
   RETURN(hipSuccess);
+
   CHIP_CATCH
 }
 
 hipError_t hipDeviceSetSharedMemConfig(hipSharedMemConfig pConfig) {
   CHIP_TRY
   CHIPInitialize();
+
   Backend->getActiveDevice()->setSharedMemConfig(pConfig);
   RETURN(hipSuccess);
+
   CHIP_CATCH
 }
 
 hipError_t hipFuncSetCacheConfig(const void *func, hipFuncCache_t config) {
   CHIP_TRY
   CHIPInitialize();
-  RETURN(hipSuccess);
+  NULLCHECK(func);
+
+  UNIMPLEMENTED(hipErrorTbd);
+  // RETURN(hipSuccess);
+
   CHIP_CATCH
 }
 
@@ -342,8 +355,8 @@ hipError_t hipDeviceGetPCIBusId(char *pciBusId, int len, int deviceId) {
   CHIP_TRY
   CHIPInitialize();
   NULLCHECK(pciBusId);
-
   ERROR_CHECK_DEVNUM(deviceId);
+
   CHIPDevice *dev = Backend->getDevices()[deviceId];
 
   hipDeviceProp_t prop;
@@ -351,15 +364,14 @@ hipError_t hipDeviceGetPCIBusId(char *pciBusId, int len, int deviceId) {
   snprintf(pciBusId, len, "%04x:%04x:%04x", prop.pciDomainID, prop.pciBusID,
            prop.pciDeviceID);
   RETURN(hipSuccess);
+
   CHIP_CATCH
 }
 
 hipError_t hipDeviceGetByPCIBusId(int *deviceId, const char *pciBusId) {
   CHIP_TRY
   CHIPInitialize();
-  if (pciBusId == nullptr)
-    CHIPERR_LOG_AND_THROW("passed in nullptr", hipErrorTbd);
-  NULLCHECK(deviceId);
+  NULLCHECK(deviceId, pciBusId);
 
   int pciDomainID, pciBusID, pciDeviceID;
   int err =
@@ -380,7 +392,7 @@ hipError_t hipDeviceGetByPCIBusId(int *deviceId, const char *pciBusId) {
 hipError_t hipSetDeviceFlags(unsigned flags) {
   CHIP_TRY
   CHIPInitialize();
-  UNIMPLEMENTED(hipErrorUnknown);
+  UNIMPLEMENTED(hipErrorNotSupported);
   RETURN(hipSuccess);
   CHIP_CATCH
 }
@@ -389,9 +401,10 @@ hipError_t hipDeviceCanAccessPeer(int *canAccessPeer, int deviceId,
                                   int peerDeviceId) {
   CHIP_TRY
   CHIPInitialize();
-
+  NULLCHECK(canAccessPeer);
   ERROR_CHECK_DEVNUM(deviceId);
   ERROR_CHECK_DEVNUM(peerDeviceId);
+
   if (deviceId == peerDeviceId) {
     *canAccessPeer = 0;
     RETURN(hipSuccess);
@@ -431,6 +444,7 @@ hipError_t hipDeviceDisablePeerAccess(int peerDeviceId) {
 hipError_t hipChooseDevice(int *deviceId, const hipDeviceProp_t *prop) {
   CHIP_TRY
   CHIPInitialize();
+  NULLCHECK(deviceId, prop);
 
   CHIPDevice *dev = Backend->findDeviceMatchingProps(prop);
   if (!dev) RETURN(hipErrorInvalidValue);
@@ -444,18 +458,22 @@ hipError_t hipChooseDevice(int *deviceId, const hipDeviceProp_t *prop) {
 hipError_t hipDriverGetVersion(int *driverVersion) {
   CHIP_TRY
   CHIPInitialize();
+  NULLCHECK(driverVersion);
 
   if (driverVersion) {
     *driverVersion = 4;
+    logWarn("Driver version is hardcoded to 4");
     RETURN(hipSuccess);
   } else
     RETURN(hipErrorInvalidValue);
+
   CHIP_CATCH
 }
 
 hipError_t hipRuntimeGetVersion(int *runtimeVersion) {
   CHIP_TRY
   CHIPInitialize();
+  NULLCHECK(runtimeVersion);
 
   if (runtimeVersion) {
     *runtimeVersion = 1;
@@ -556,10 +574,6 @@ const char *hipGetErrorName(hipError_t hip_error) {
       return "hipErrorInvalidSymbol";
     case hipErrorMissingConfiguration:
       return "hipErrorMissingConfiguration";
-    // case hipErrorMemoryAllocation:
-    //   return "hipErrorMemoryAllocation";
-    // case hipErrorInitializationError:
-    //   return "hipErrorInitializationError";
     case hipErrorLaunchFailure:
       return "hipErrorLaunchFailure";
     case hipErrorPriorLaunchFailure:
@@ -582,8 +596,6 @@ const char *hipGetErrorName(hipError_t hip_error) {
       return "hipErrorInvalidMemcpyDirection";
     case hipErrorUnknown:
       return "hipErrorUnknown";
-    // case hipErrorInvalidResourceHandle:
-    //   return "hipErrorInvalidResourceHandle";
     case hipErrorNotReady:
       return "hipErrorNotReady";
     case hipErrorNoDevice:
@@ -625,10 +637,9 @@ hipError_t hipStreamCreateWithPriority(hipStream_t *stream, unsigned int flags,
                                        int priority) {
   CHIP_TRY
   CHIPInitialize();
+  NULLCHECK(stream);
 
   CHIPDevice *dev = Backend->getActiveDevice();
-  ERROR_IF((dev == nullptr), hipErrorInvalidDevice);
-
   CHIPQueue *new_q = dev->addQueue(flags, priority);
   *stream = new_q;
   RETURN(hipSuccess);
@@ -640,52 +651,53 @@ hipError_t hipDeviceGetStreamPriorityRange(int *leastPriority,
                                            int *greatestPriority) {
   CHIP_TRY
   CHIPInitialize();
+  NULLCHECK(leastPriority, greatestPriority);
 
   CHIPQueue *q = Backend->getActiveQueue();
 
   if (leastPriority) *leastPriority = q->getPriorityRange(0);
   if (greatestPriority) *greatestPriority = q->getPriorityRange(1);
   RETURN(hipSuccess);
+
   CHIP_CATCH
 }
 
 hipError_t hipStreamDestroy(hipStream_t stream) {
   CHIP_TRY
   CHIPInitialize();
-  ERROR_IF((stream == nullptr), hipErrorInvalidResourceHandle);
 
+  stream = Backend->findQueue(stream);
   CHIPDevice *dev = Backend->getActiveDevice();
-  ERROR_IF((dev == nullptr), hipErrorInvalidDevice);
 
   if (dev->removeQueue(stream))
     RETURN(hipSuccess);
   else
     RETURN(hipErrorInvalidValue);
+
   CHIP_CATCH
 }
 
 hipError_t hipStreamQuery(hipStream_t stream) {
   CHIP_TRY
   CHIPInitialize();
-  ERROR_IF((stream == nullptr), hipErrorInvalidResourceHandle);
 
+  stream = Backend->findQueue(stream);
   if (stream->query()) {
     RETURN(hipSuccess);
   } else
     RETURN(hipErrorNotReady);
+
   CHIP_CATCH
 }
 
 hipError_t hipStreamSynchronize(hipStream_t stream) {
   CHIP_TRY
   CHIPInitialize();
-  // ERROR_IF((stream == nullptr), hipErrorInvalidResourceHandle);
-  ERROR_IF((Backend->findQueue(stream) == nullptr),
-           hipErrorInvalidResourceHandle);
-  Backend->findQueue(stream)->finish();
-  // TODO
-  // stream->finish();
+
+  stream = Backend->findQueue(stream);
+  stream->finish();
   RETURN(hipSuccess);
+
   CHIP_CATCH
 }
 
@@ -693,7 +705,9 @@ hipError_t hipStreamWaitEvent(hipStream_t stream, hipEvent_t event,
                               unsigned int flags) {
   CHIP_TRY
   CHIPInitialize();
+  NULLCHECK(event);
 
+  stream = Backend->findQueue(stream);
   ERROR_IF((stream == nullptr), hipErrorInvalidResourceHandle);
   ERROR_IF((event == nullptr), hipErrorInvalidResourceHandle);
 
@@ -707,22 +721,24 @@ hipError_t hipStreamWaitEvent(hipStream_t stream, hipEvent_t event,
 hipError_t hipStreamGetFlags(hipStream_t stream, unsigned int *flags) {
   CHIP_TRY
   CHIPInitialize();
-  ERROR_IF((stream == nullptr), hipErrorInvalidResourceHandle);
-  ERROR_IF((flags == nullptr), hipErrorInvalidResourceHandle);
+  NULLCHECK(flags);
 
+  stream = Backend->findQueue(stream);
   *flags = stream->getFlags();
   RETURN(hipSuccess);
+
   CHIP_CATCH
 }
 
 hipError_t hipStreamGetPriority(hipStream_t stream, int *priority) {
   CHIP_TRY
   CHIPInitialize();
-  ERROR_IF((stream == nullptr), hipErrorInvalidResourceHandle);
-  ERROR_IF((priority == nullptr), hipErrorInvalidResourceHandle);
+  NULLCHECK(priority);
 
+  stream = Backend->findQueue(stream);
   *priority = stream->getPriority();
   RETURN(hipSuccess);
+
   CHIP_CATCH
 }
 
@@ -731,9 +747,12 @@ hipError_t hipStreamAddCallback(hipStream_t stream,
                                 unsigned int flags) {
   CHIP_TRY
   CHIPInitialize();
-  ERROR_IF((stream == nullptr), hipErrorInvalidResourceHandle);
-  ERROR_IF((callback == nullptr), hipErrorInvalidResourceHandle);
+  // TODO: Can't use NULLCHECK for this one
+  if (callback == nullptr)
+    CHIPERR_LOG_AND_THROW("passed in nullptr", hipErrorInvalidValue);
+  NULLCHECK(userData);
 
+  stream = Backend->findQueue(stream);
   if (stream->addCallback(callback, userData))
     RETURN(hipSuccess);
   else
@@ -745,12 +764,14 @@ hipError_t hipMemGetAddressRange(hipDeviceptr_t *pbase, size_t *psize,
                                  hipDeviceptr_t dptr) {
   CHIP_TRY
   CHIPInitialize();
-  CHIPContext *ctx = Backend->getActiveContext();
+  NULLCHECK(pbase, psize, dptr);
 
+  CHIPContext *ctx = Backend->getActiveContext();
   if (ctx->findPointerInfo(pbase, psize, dptr))
     RETURN(hipSuccess);
   else
     RETURN(hipErrorInvalidValue);
+
   CHIP_CATCH
 }
 
@@ -758,9 +779,8 @@ hipError_t hipDevicePrimaryCtxGetState(hipDevice_t device, unsigned int *flags,
                                        int *active) {
   CHIP_TRY
   CHIPInitialize();
+  NULLCHECK(flags, active);
   ERROR_CHECK_DEVNUM(device);
-
-  ERROR_IF((flags == nullptr || active == nullptr), hipErrorInvalidValue);
 
   CHIPContext *currentCtx = Backend->getActiveContext();
 
@@ -769,8 +789,8 @@ hipError_t hipDevicePrimaryCtxGetState(hipDevice_t device, unsigned int *flags,
 
   *active = (primaryCtx == currentCtx) ? 1 : 0;
   *flags = primaryCtx->getFlags();
-
   RETURN(hipSuccess);
+
   CHIP_CATCH
 }
 
@@ -778,6 +798,7 @@ hipError_t hipDevicePrimaryCtxRelease(hipDevice_t device) {
   CHIP_TRY
   CHIPInitialize();
   ERROR_CHECK_DEVNUM(device);
+  UNIMPLEMENTED(hipErrorNotSupported);
   RETURN(hipSuccess);
   CHIP_CATCH
 }
@@ -785,9 +806,13 @@ hipError_t hipDevicePrimaryCtxRelease(hipDevice_t device) {
 hipError_t hipDevicePrimaryCtxRetain(hipCtx_t *pctx, hipDevice_t device) {
   CHIP_TRY
   CHIPInitialize();
+  NULLCHECK(pctx);
   ERROR_CHECK_DEVNUM(device);
+
+  UNIMPLEMENTED(hipErrorNotSupported);
   *pctx = (Backend->getDevices()[device])->getContext()->retain();
   RETURN(hipSuccess);
+
   CHIP_CATCH
 }
 
@@ -795,6 +820,7 @@ hipError_t hipDevicePrimaryCtxReset(hipDevice_t device) {
   CHIP_TRY
   CHIPInitialize();
   ERROR_CHECK_DEVNUM(device);
+
   (Backend->getDevices()[device])->getContext()->reset();
 
   RETURN(hipSuccess);
@@ -806,8 +832,10 @@ hipError_t hipDevicePrimaryCtxSetFlags(hipDevice_t device, unsigned int flags) {
   CHIPInitialize();
   ERROR_CHECK_DEVNUM(device);
 
+  UNIMPLEMENTED(hipErrorNotSupported);
   (Backend->getDevices()[device])->getContext()->setFlags(flags);
   RETURN(hipSuccess);
+
   CHIP_CATCH
 }
 
@@ -818,55 +846,57 @@ hipError_t hipEventCreate(hipEvent_t *event) {
 hipError_t hipEventCreateWithFlags(hipEvent_t *event, unsigned flags) {
   CHIP_TRY
   CHIPInitialize();
-  ERROR_IF((event == nullptr), hipErrorInvalidValue);
+  NULLCHECK(event);
 
   *event = Backend->getActiveContext()->createEvent(flags);
   RETURN(hipSuccess);
+
   CHIP_CATCH
 }
 
 hipError_t hipEventRecord(hipEvent_t event, hipStream_t stream) {
   CHIP_TRY
   CHIPInitialize();
-  if (!stream) stream = Backend->getActiveQueue();
   // TODO: Why does this check fail for OpenCL but not for Level0
-  // ERROR_IF((event == nullptr), hipErrorInvalidValue);
+  NULLCHECK(event);
 
+  stream = Backend->findQueue(stream);
   event->recordStream(stream);
   RETURN(hipSuccess);
+
   CHIP_CATCH
 }
 
 hipError_t hipEventDestroy(hipEvent_t event) {
   CHIP_TRY
   CHIPInitialize();
-  ERROR_IF((event == nullptr), hipErrorInvalidValue);
+  NULLCHECK(event);
 
   delete event;
   RETURN(hipSuccess);
+
   CHIP_CATCH
 }
 
 hipError_t hipEventSynchronize(hipEvent_t event) {
   CHIP_TRY
   CHIPInitialize();
-  ERROR_IF((event == nullptr), hipErrorInvalidValue);
+  NULLCHECK(event);
 
-  if (event->wait())
-    RETURN(hipSuccess);
-  else
-    RETURN(hipErrorInvalidValue);
+  event->wait();
+  RETURN(hipSuccess);
+
   CHIP_CATCH
 }
 
 hipError_t hipEventElapsedTime(float *ms, hipEvent_t start, hipEvent_t stop) {
   CHIP_TRY
   CHIPInitialize();
-  ERROR_IF((start == nullptr), hipErrorInvalidValue);
-  ERROR_IF((stop == nullptr), hipErrorInvalidValue);
+  NULLCHECK(ms, start, stop);
 
   *ms = start->getElapsedTime(stop);
   RETURN(hipSuccess);
+
   CHIP_CATCH
 }
 
@@ -1984,15 +2014,15 @@ extern "C" void __hipRegisterVar(
 }
 
 hipError_t hipGetSymbolAddress(void **devPtr, const void *symbol) {
-  UNIMPLEMENTED(hipSuccess);
+  UNIMPLEMENTED(hipErrorNotSupported);
 }
 
 hipError_t hipIpcOpenEventHandle(hipEvent_t *event,
                                  hipIpcEventHandle_t handle) {
-  UNIMPLEMENTED(hipSuccess);
+  UNIMPLEMENTED(hipErrorNotSupported);
 }
 hipError_t hipIpcGetEventHandle(hipIpcEventHandle_t *handle, hipEvent_t event) {
-  UNIMPLEMENTED(hipSuccess);
+  UNIMPLEMENTED(hipErrorNotSupported);
 }
 
 hipError_t hipModuleOccupancyMaxPotentialBlockSize(int *gridSize,
@@ -2004,40 +2034,42 @@ hipError_t hipModuleOccupancyMaxPotentialBlockSize(int *gridSize,
 hipError_t hipModuleOccupancyMaxPotentialBlockSizeWithFlags(
     int *gridSize, int *blockSize, hipFunction_t f, size_t dynSharedMemPerBlk,
     int blockSizeLimit, unsigned int flags) {
-  UNIMPLEMENTED(hipSuccess);
+  UNIMPLEMENTED(hipErrorNotSupported);
 }
 
 hipError_t hipModuleOccupancyMaxActiveBlocksPerMultiprocessor(
     int *numBlocks, hipFunction_t f, int blockSize,
     size_t dynSharedMemPerBlkA) {
-  UNIMPLEMENTED(hipSuccess);
+  UNIMPLEMENTED(hipErrorNotSupported);
 }
 
 hipError_t hipModuleOccupancyMaxActiveBlocksPerMultiprocessorWithFlags(
     int *numBlocks, hipFunction_t f, int blockSize, size_t dynSharedMemPerBlk,
     unsigned int flags) {
-  UNIMPLEMENTED(hipSuccess);
+  UNIMPLEMENTED(hipErrorNotSupported);
 }
 
 hipError_t hipOccupancyMaxActiveBlocksPerMultiprocessor(
     int *numBlocks, const void *f, int blockSize, size_t dynSharedMemPerBlk) {
-  UNIMPLEMENTED(hipSuccess);
+  UNIMPLEMENTED(hipErrorNotSupported);
 }
 
 hipError_t hipOccupancyMaxActiveBlocksPerMultiprocessorWithFlags(
     int *numBlocks, const void *f, int blockSize, size_t dynSharedMemPerBlk,
     unsigned int flags) {
-  UNIMPLEMENTED(hipSuccess);
+  UNIMPLEMENTED(hipErrorNotSupported);
 }
 
 hipError_t hipOccupancyMaxPotentialBlockSize(int *gridSize, int *blockSize,
                                              const void *f,
                                              size_t dynSharedMemPerBlk,
                                              int blockSizeLimit) {
-  UNIMPLEMENTED(hipSuccess);
+  UNIMPLEMENTED(hipErrorNotSupported);
 }
 
-hipError_t hipGetDeviceFlags(unsigned int *flags) { UNIMPLEMENTED(hipSuccess); }
+hipError_t hipGetDeviceFlags(unsigned int *flags) {
+  UNIMPLEMENTED(hipErrorNotSupported);
+}
 
 /**
  * Query the hip stream related native informtions
