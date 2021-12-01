@@ -98,13 +98,18 @@ hipError_t hipMemcpyParam2DAsync(const hip_Memcpy2D *pCopy,
                                  hipStream_t stream) {
   UNIMPLEMENTED(hipErrorUnknown);
 }
+
+//*****************************************************************************
+//*****************************************************************************
+//*****************************************************************************
+
 hipError_t __hipPushCallConfiguration(dim3 gridDim, dim3 blockDim,
                                       size_t sharedMem, hipStream_t stream) {
+  logTrace("__hipPushCallConfiguration()");
   CHIP_TRY
   CHIPInitialize();
+  stream = Backend->findQueue(stream);
 
-  if (!stream) stream = Backend->getActiveQueue();
-  logTrace("__hipPushCallConfiguration()");
   RETURN(Backend->configureCall(gridDim, blockDim, sharedMem, stream));
   CHIP_CATCH
   RETURN(hipSuccess);
@@ -115,7 +120,6 @@ hipError_t __hipPopCallConfiguration(dim3 *gridDim, dim3 *blockDim,
   logTrace("__hipPopCallConfiguration()");
   CHIP_TRY
   CHIPInitialize();
-  // if (!stream) *stream = Backend->getActiveQueue();
 
   auto *ei = Backend->chip_execstack.top();
   *gridDim = ei->getGrid();
@@ -127,15 +131,10 @@ hipError_t __hipPopCallConfiguration(dim3 *gridDim, dim3 *blockDim,
   CHIP_CATCH
 }
 
-//*****************************************************************************
-//*****************************************************************************
-//*****************************************************************************
 hipError_t hipGetDevice(int *deviceId) {
   CHIP_TRY
   CHIPInitialize();
-
-  ERROR_IF((deviceId == nullptr),
-           hipErrorInvalidValue);  // Check API compliance
+  NULLCHECK(deviceId);
 
   CHIPDevice *dev = Backend->getActiveDevice();
   *deviceId = dev->getDeviceId();
@@ -147,7 +146,8 @@ hipError_t hipGetDevice(int *deviceId) {
 hipError_t hipGetDeviceCount(int *count) {
   CHIP_TRY
   CHIPInitialize();
-  ERROR_IF((count == nullptr), hipErrorInvalidValue);  // Check API compliance
+  NULLCHECK(count);
+
   *count = Backend->getNumDevices();
 
   RETURN(hipSuccess);
@@ -172,7 +172,6 @@ hipError_t hipDeviceSynchronize(void) {
   CHIPInitialize();
 
   CHIPContext *ctx = Backend->getActiveContext();
-  ERROR_IF((ctx == nullptr), hipErrorInvalidDevice);
   ctx->finishAll();
 
   RETURN(hipSuccess);
@@ -184,7 +183,6 @@ hipError_t hipDeviceReset(void) {
   CHIPInitialize();
 
   CHIPDevice *dev = Backend->getActiveDevice();
-  ERROR_IF((dev == nullptr), hipErrorInvalidDevice);
 
   dev->reset();
   RETURN(hipSuccess);
@@ -194,12 +192,13 @@ hipError_t hipDeviceReset(void) {
 hipError_t hipDeviceGet(hipDevice_t *device, int ordinal) {
   CHIP_TRY
   CHIPInitialize();
-
-  ERROR_IF((device == nullptr), hipErrorInvalidDevice);
+  NULLCHECK(device);
   ERROR_CHECK_DEVNUM(ordinal);
 
-  //**device = Backend->getDevices()[ordinal];
+  /// Since the tests are written such that hipDevice_t is an int, this function
+  /// is strange
   *device = ordinal;
+
   RETURN(hipSuccess);
   CHIP_CATCH
 }
@@ -208,7 +207,7 @@ hipError_t hipDeviceComputeCapability(int *major, int *minor,
                                       hipDevice_t device) {
   CHIP_TRY
   CHIPInitialize();
-
+  NULLCHECK(major, minor);
   ERROR_CHECK_DEVNUM(device);
 
   hipDeviceProp_t props;
@@ -225,6 +224,7 @@ hipError_t hipDeviceGetAttribute(int *pi, hipDeviceAttribute_t attr,
                                  int deviceId) {
   CHIP_TRY
   CHIPInitialize();
+  NULLCHECK(pi);
   ERROR_CHECK_DEVNUM(deviceId);
 
   *pi = Backend->getDevices()[deviceId]->getAttr(attr);
@@ -232,6 +232,7 @@ hipError_t hipDeviceGetAttribute(int *pi, hipDeviceAttribute_t attr,
     RETURN(hipErrorInvalidValue);
   else
     RETURN(hipSuccess);
+
   CHIP_CATCH
 }
 
@@ -270,6 +271,7 @@ hipError_t hipDeviceGetName(char *name, int len, hipDevice_t device) {
   CHIP_TRY
   CHIPInitialize();
   ERROR_CHECK_DEVNUM(device);
+  NULLCHECK(name);
   std::string dev_name = (Backend->getDevices()[device])->getName();
 
   size_t namelen = dev_name.size();
@@ -339,6 +341,7 @@ hipError_t hipFuncSetCacheConfig(const void *func, hipFuncCache_t config) {
 hipError_t hipDeviceGetPCIBusId(char *pciBusId, int len, int deviceId) {
   CHIP_TRY
   CHIPInitialize();
+  NULLCHECK(pciBusId);
 
   ERROR_CHECK_DEVNUM(deviceId);
   CHIPDevice *dev = Backend->getDevices()[deviceId];
@@ -354,6 +357,9 @@ hipError_t hipDeviceGetPCIBusId(char *pciBusId, int len, int deviceId) {
 hipError_t hipDeviceGetByPCIBusId(int *deviceId, const char *pciBusId) {
   CHIP_TRY
   CHIPInitialize();
+  if (pciBusId == nullptr)
+    CHIPERR_LOG_AND_THROW("passed in nullptr", hipErrorTbd);
+  NULLCHECK(deviceId);
 
   int pciDomainID, pciBusID, pciDeviceID;
   int err =
@@ -1225,6 +1231,9 @@ hipError_t hipMemcpyAsync(void *dst, const void *src, size_t sizeBytes,
                           hipMemcpyKind kind, hipStream_t stream) {
   CHIP_TRY
   CHIPInitialize();
+  NULLCHECK(dst);
+  if (src == nullptr) CHIPERR_LOG_AND_THROW("passed in nullptr", hipErrorTbd);
+
   auto q = Backend->findQueue(stream);
   if (!q) q = Backend->getActiveQueue();
 
@@ -1415,6 +1424,8 @@ hipError_t hipMemcpy2DToArray(hipArray *dst, size_t wOffset, size_t hOffset,
                               size_t height, hipMemcpyKind kind) {
   CHIP_TRY
   CHIPInitialize();
+  NULLCHECK(dst)
+  if (src == nullptr) CHIPERR_LOG_AND_THROW("passed in nullptr", hipErrorTbd);
 
   size_t byteSize;
   if (dst) {
