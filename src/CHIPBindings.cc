@@ -1745,16 +1745,12 @@ hipError_t hipMemcpyFromSymbolAsync(void *dst, const void *symbol,
 }
 
 hipError_t hipModuleLoadData(hipModule_t *module, const void *image) {
-<<<<<<< HEAD
-  UNIMPLEMENTED(hipErrorNotSupported);
-=======
   CHIP_TRY
   CHIPInitialize();
   NULLCHECK(module, image);
 
   UNIMPLEMENTED(hipErrorNotSupported);
 
->>>>>>> hipArgChecklocal
   RETURN(hipSuccess);
   CHIP_CATCH
 }
@@ -1841,7 +1837,7 @@ hipError_t hipModuleLoad(hipModule_t *module, const char *fname) {
 
 hipError_t hipModuleUnload(hipModule_t module) {
   CHIP_TRY
-  CHIPInitiliaze();
+  CHIPInitialize();
   NULLCHECK(module);
 
   UNIMPLEMENTED(hipErrorTbd);
