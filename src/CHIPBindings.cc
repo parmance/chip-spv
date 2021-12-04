@@ -20,13 +20,12 @@
 
 #include "CHIPBackend.hh"
 #include "CHIPDriver.hh"
+#include "CHIPException.hh"
+#include "backend/backends.hh"
 #include "hip/hip_fatbin.h"
 #include "hip/hip_runtime_api.h"
-#include "macros.hh"
-#include "CHIPException.hh"
-
-#include "backend/backends.hh"
 #include "hip_conversions.hh"
+#include "macros.hh"
 
 #define SPIR_TRIPLE "hip-spir64-unknown-unknown"
 
@@ -1665,6 +1664,7 @@ hipError_t hipModuleGetGlobal(hipDeviceptr_t *dptr, size_t *bytes,
 hipError_t hipGetSymbolSize(size_t *size, const void *symbol) {
   CHIP_TRY
   CHIPInitialize();
+  NULLCHECK(size, symbol);
 
   CHIPDeviceVar *var = Backend->getActiveDevice()->getGlobalVar(symbol);
   ERROR_IF(!var, hipErrorInvalidSymbol);
@@ -1680,6 +1680,7 @@ hipError_t hipMemcpyToSymbol(const void *symbol, const void *src,
                              hipMemcpyKind kind) {
   CHIP_TRY
   CHIPInitialize();
+  NULLCHECK(symbol, src);
 
   hipError_t e = hipMemcpyToSymbolAsync(symbol, src, sizeBytes, offset, kind,
                                         Backend->getActiveQueue());
@@ -1696,7 +1697,8 @@ hipError_t hipMemcpyToSymbolAsync(const void *symbol, const void *src,
                                   hipMemcpyKind kind, hipStream_t stream) {
   CHIP_TRY
   CHIPInitialize();
-  if (!stream) stream = Backend->getActiveQueue();
+  NULLCHECK(symbol, src);
+  stream = Backend->findQueue(stream);
 
   void *symPtr = NULL;
   size_t symSize = 0;
@@ -1712,6 +1714,7 @@ hipError_t hipMemcpyFromSymbol(void *dst, const void *symbol, size_t sizeBytes,
                                size_t offset, hipMemcpyKind kind) {
   CHIP_TRY
   CHIPInitialize();
+  NULLCHECK(dst, symbol);
 
   hipError_t e = hipMemcpyFromSymbolAsync(dst, symbol, sizeBytes, offset, kind,
                                           Backend->getActiveQueue());
@@ -1727,7 +1730,8 @@ hipError_t hipMemcpyFromSymbolAsync(void *dst, const void *symbol,
                                     hipMemcpyKind kind, hipStream_t stream) {
   CHIP_TRY
   CHIPInitialize();
-  if (!stream) stream = Backend->getActiveQueue();
+  NULLCHECK(dst, symbol);
+  stream = Backend->findQueue(stream);
 
   void *symPtr;
   size_t symSize;
@@ -1741,8 +1745,18 @@ hipError_t hipMemcpyFromSymbolAsync(void *dst, const void *symbol,
 }
 
 hipError_t hipModuleLoadData(hipModule_t *module, const void *image) {
+<<<<<<< HEAD
   UNIMPLEMENTED(hipErrorNotSupported);
+=======
+  CHIP_TRY
+  CHIPInitialize();
+  NULLCHECK(module, image);
+
+  UNIMPLEMENTED(hipErrorNotSupported);
+
+>>>>>>> hipArgChecklocal
   RETURN(hipSuccess);
+  CHIP_CATCH
 }
 
 hipError_t hipModuleLoadDataEx(hipModule_t *module, const void *image,
@@ -1750,6 +1764,7 @@ hipError_t hipModuleLoadDataEx(hipModule_t *module, const void *image,
                                void **optionValues) {
   CHIP_TRY
   CHIPInitialize();
+  NULLCHECK(module, image);
   RETURN(hipModuleLoadData(module, image));
   CHIP_CATCH
 }
@@ -1759,12 +1774,14 @@ hipError_t hipLaunchKernel(const void *hostFunction, dim3 gridDim,
                            hipStream_t stream) {
   CHIP_TRY
   CHIPInitialize();
-  if (!stream) stream = Backend->getActiveQueue();
+  NULLCHECK(hostFunction, args);
+  stream = Backend->findQueue(stream);
 
   if (!stream->launchHostFunc(hostFunction, gridDim, blockDim, args,
                               sharedMem)) {
     RETURN(hipErrorLaunchFailure);
   }
+
   RETURN(hipSuccess);
   CHIP_CATCH
 }
@@ -1775,6 +1792,8 @@ hipError_t hipCreateTextureObject(
     const struct hipResourceViewDesc *pResViewDesc) {
   CHIP_TRY
   CHIPInitialize();
+  NULLCHECK(pTexObject, pResDesc, pTexDesc, pResViewDesc);
+
   CHIPTexture *chip_texture = Backend->getActiveDevice()->createTexture(
       pResDesc, pTexDesc, pResViewDesc);
   hipTextureObject_t retObj = chip_texture->get();
@@ -1801,6 +1820,7 @@ hipError_t hipDestroyTextureObject(hipTextureObject_t textureObject) {
 hipError_t hipModuleLoad(hipModule_t *module, const char *fname) {
   CHIP_TRY
   CHIPInitialize();
+  NULLCHECK(module, fname);
 
   std::ifstream file(fname, std::ios::in | std::ios::binary | std::ios::ate);
   ERROR_IF((file.fail()), hipErrorFileNotFound);
@@ -1819,14 +1839,21 @@ hipError_t hipModuleLoad(hipModule_t *module, const char *fname) {
   CHIP_CATCH
 }
 
-hipError_t hipModuleUnload(hipModule_t module) { UNIMPLEMENTED(hipErrorTbd); }
+hipError_t hipModuleUnload(hipModule_t module) {
+  CHIP_TRY
+  CHIPInitiliaze();
+  NULLCHECK(module);
+
+  UNIMPLEMENTED(hipErrorTbd);
+  CHIP_CATCH
+}
 
 hipError_t hipModuleGetFunction(hipFunction_t *function, hipModule_t module,
                                 const char *kname) {
   CHIP_TRY
   CHIPInitialize();
+  NULLCHECK(function, module, kname);
 
-  ERROR_IF(!module, hipErrorInvalidValue);
   CHIPKernel *kernel = module->getKernel(kname);
 
   ERROR_IF((kernel == nullptr), hipErrorInvalidDeviceFunction);
@@ -1845,7 +1872,7 @@ hipError_t hipModuleLaunchKernel(hipFunction_t k, unsigned int gridDimX,
                                  void **extra) {
   CHIP_TRY
   CHIPInitialize();
-  if (!stream) stream = Backend->getActiveQueue();
+  stream = Backend->findQueue(stream);
 
   if (sharedMemBytes > 0) {
     logCritical("Dynamic shared memory not yet implemented");
@@ -1876,6 +1903,8 @@ hipError_t hipModuleLaunchKernel(hipFunction_t k, unsigned int gridDimX,
 hipError_t hipLaunchByPtr(const void *hostFunction) {
   CHIP_TRY
   CHIPInitialize();
+  NULLCHECK(hostFunction);
+
   logTrace("hipLaunchByPtr");
   CHIPExecItem *exec_item = Backend->chip_execstack.top();
   Backend->chip_execstack.pop();
@@ -1888,7 +1917,7 @@ hipError_t hipConfigureCall(dim3 gridDim, dim3 blockDim, size_t sharedMem,
                             hipStream_t stream) {
   CHIP_TRY
   CHIPInitialize();
-  if (!stream) stream = Backend->getActiveQueue();
+  stream = Backend->findQueue(stream);
   logTrace("hipConfigureCall()");
   RETURN(Backend->configureCall(gridDim, blockDim, sharedMem, stream));
   RETURN(hipSuccess);
