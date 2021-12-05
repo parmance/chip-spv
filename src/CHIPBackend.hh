@@ -17,21 +17,20 @@
 #include <algorithm>
 #include <iostream>
 #include <map>
-#include <set>
 #include <mutex>
+#include <set>
+#include <stack>
 #include <string>
 #include <vector>
-#include <stack>
 
-#include "spirv.hh"
+#include "CHIPDriver.hh"
+#include "CHIPException.hh"
 #include "hip/hip_runtime.h"
 #include "hip/hip_runtime_api.h"
 #include "hip/spirv_hip.hh"
-
-#include "CHIPDriver.hh"
 #include "logging.hh"
 #include "macros.hh"
-#include "CHIPException.hh"
+#include "spirv.hh"
 
 class CHIPEventMonitor;
 
@@ -48,6 +47,12 @@ class CHIPCallbackData {
 
   CHIPCallbackData(hipStreamCallback_t callback_f_, void* callback_args_,
                    CHIPQueue* chip_queue_);
+
+  /**
+   * @brief
+   *
+   */
+  virtual void setup();
 
   void execute() { callback_f(chip_queue, status, callback_args); }
 };
@@ -1344,6 +1349,17 @@ class CHIPBackend {
   // virtual CHIPContext* createCHIPContext() = 0;
   virtual CHIPEvent* createCHIPEvent(CHIPContext* chip_ctx_,
                                      CHIPEventType event_type_) = 0;
+
+  /**
+   * @brief Create a Callback Obj object
+   * Each backend must implement this function which calls a derived
+   * CHIPCallbackData constructor
+   * @return CHIPCallbackData* pointer to newly allocated CHIPCallbackData
+   * object.
+   */
+  virtual CHIPCallbackData* createCallbackObj(hipStreamCallback_t callback,
+                                              void* userData,
+                                              CHIPQueue* chip_queue_) = 0;
 };
 
 /**
@@ -1584,27 +1600,6 @@ class CHIPQueue {
                                    CHIPKernel* kernel);
 
   virtual void getBackendHandles(unsigned long* nativeInfo, int* size) = 0;
-
-  /**
-   * @brief Create a Callback Obj object
-   * Each backend must implement this function which calls a derived
-   * CHIPCallbackData constructor
-   * @return CHIPCallbackData* pointer to newly allocated CHIPCallbackData
-   * object.
-   */
-  virtual CHIPCallbackData* createCallbackObj(hipStreamCallback_t callback,
-                                              void* userData,
-                                              CHIPQueue* chip_queue_) {
-    UNIMPLEMENTED(nullptr);
-  };
-
-  /**
-   * @brief Create a Event Monitor object
-   * Each backend needs to implement CHIPEventMonitor derived class with an
-   * overridden monitor() function
-   * @return CHIPEventMonitor* pointer to derived type
-   */
-  virtual CHIPEventMonitor* createEventMonitor() { UNIMPLEMENTED(nullptr); }
 
   /**
    * @brief Get the Callback object

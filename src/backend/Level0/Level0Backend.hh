@@ -1,9 +1,9 @@
 #ifndef CHIP_BACKEND_LEVEL0_H
 #define CHIP_BACKEND_LEVEL0_H
 
-#include "../src/common.hh"
 #include "../../CHIPBackend.hh"
 #include "../include/ze_api.h"
+#include "../src/common.hh"
 
 std::string resultToString(ze_result_t status);
 
@@ -15,6 +15,18 @@ class CHIPTextureLevel0;
 class CHIPEventLevel0;
 class LZCommandList;
 
+class CHIPCallbackObjLevel0 : public CHIPCallbackObj {
+ private:
+  ze_event_pool_handle_t ze_event_pool;
+
+ public:
+  virtual void setup() override {
+    // create a pool
+    // create events from pool
+    // assign events to parent events
+    UNIMPLEMENTED();
+  };
+};
 // class CHIPCallbackDataLevel0 : public CHIPCallbackData {
 //   ze_event_pool_handle_t ze_event_pool;
 
@@ -408,6 +420,10 @@ class CHIPBackendLevel0 : public CHIPBackend {
   virtual CHIPEvent* createCHIPEvent(CHIPContext* chip_ctx_,
                                      CHIPEventType event_type_) override {
     return new CHIPEventLevel0((CHIPContextLevel0*)chip_ctx_, event_type_);
+  }
+
+  virtual CHIPCallbackObj* createCallbackObj() override {
+    return new CHIPCallbackObj
   }
 
 };  // CHIPBackendLevel0

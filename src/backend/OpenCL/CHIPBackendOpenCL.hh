@@ -214,6 +214,12 @@ class CHIPBackendOpenCL : public CHIPBackend {
                                      CHIPEventType event_type_) override {
     UNIMPLEMENTED(nullptr);
   }
+
+  virtual CHIPCallbackData *createCallbackObj(hipStreamCallback_t callback,
+                                              void *userData,
+                                              CHIPQueue *chip_queue_) override {
+    UNIMPLEMENTED(nullptr);
+  }
 };
 
 class CHIPEventOpenCL : public CHIPEvent {
