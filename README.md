@@ -20,7 +20,7 @@ project is a result of [HIPCL](https://github.com/cpc/hipcl) and
 
 ## Downloading Sources
 
-````bash
+```bash
 git clone https://github.com/CHIP-SPV/chip-spv.git
 cd chip-spv
 git submodule update --init --recursive
@@ -28,7 +28,7 @@ git submodule update --init --recursive
 
 ## Building
 
-````bash
+```bash
 # export PATH=${PATH_TO_CLANG_SPIRV}:$PATH
 mkdir build
 cd build
@@ -40,13 +40,13 @@ cmake .. -DCMAKE_CXX_COMPILER=clang++
 
 Run tests on the default backend:
 
-````bash
+```bash
 make test
 ```
 
 Run tests on a specific backend:
 
-````bash
+```bash
 CHIP_BE=<backend> make test
 ```
 
