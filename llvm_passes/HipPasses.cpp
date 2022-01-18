@@ -10,6 +10,7 @@
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Passes/PassPlugin.h"
 
+
 using namespace llvm;
 
 static void addFullLinkTimePasses(ModulePassManager &MPM) {
@@ -17,7 +18,7 @@ static void addFullLinkTimePasses(ModulePassManager &MPM) {
   MPM.addPass(HipStripCompilerUsedPass());
   MPM.addPass(HipDynMemExternReplaceNewPass());
   MPM.addPass(HipTextureExternReplaceNewPass());
-  MPM.addPass(createModuleToFunctionPassAdaptor(HipPrintfToOpenCLPrintfPass()));
+  MPM.addPass(HipPrintfToOpenCLPrintfPass());
   MPM.addPass(createModuleToFunctionPassAdaptor(HipDefrostPass()));
   // This pass must appear after HipDynMemExternReplaceNewPass.
   MPM.addPass(HipGlobalVariablesPass());
