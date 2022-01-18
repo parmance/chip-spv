@@ -53,11 +53,20 @@ Value* convertFormatString(Value *HipFmtStrArg, Instruction *Before,
 
   Value *FmtStrOpr = CE->getOperand(0);
 
-  GlobalVariable *OrigFmtStr =
-    isa<GetElementPtrInst>(FmtStrOpr) ?
-    cast<GlobalVariable>(
-      cast<GetElementPtrInst>(FmtStrOpr)->getPointerOperand()) :
-    cast<GlobalVariable>(FmtStrOpr);
+  if (auto GEP = dyn_cast<GetElementPtrInst>(FmtStrOpr)) {
+    FmtStrOpr = GEP->getPointerOperand();
+  }
+  if (auto ASCast = dyn_cast<AddrSpaceCastInst>(FmtStrOpr)) {
+    FmtStrOpr = ASCast->getPointerOperand();
+  } else if (auto CE = dyn_cast<ConstantExpr>(FmtStrOpr)) {
+    if (CE->getOpcode() == llvm::Instruction::AddrSpaceCast) {
+      FmtStrOpr = CE->getOperand(0);
+    } else {
+      assert ("Cannot handle the printf format string!" && false);
+    }
+  }
+
+  GlobalVariable *OrigFmtStr = cast<GlobalVariable>(FmtStrOpr);
 
   ConstantDataSequential *FmtStrData =
     cast<ConstantDataSequential>(OrigFmtStr->getInitializer());
