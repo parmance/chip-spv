@@ -173,6 +173,10 @@ static void emitGlobalVarInitShadowKernel(Module &M, GlobalVariable *GVar,
 static bool shouldLower(const GlobalVariable &GVar) {
   if (!GVar.hasName()) return false;
 
+  // String literals get an unnamed_addr attribute, we know by it to
+  // skip them.
+  if (GVar.hasAtLeastLocalUnnamedAddr()) return false;
+
   if (GVar.getName().startswith(ChipVarPrefix))
     return false;  // Already lowered.
 
