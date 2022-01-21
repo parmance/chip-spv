@@ -862,28 +862,28 @@ void CHIPBackendOpenCL::initializeImpl(std::string CHIPPlatformStr,
     SelectedDevType = CL_DEVICE_TYPE_ACCELERATOR;
   else
     throw InvalidDeviceType("Unknown value provided for CHIP_DEVICE_TYPE\n");
-  std::cout << "Using Devices of type " << CHIPDeviceTypeStr << "\n";
+  logTrace("Using Devices of type {}\n", SelectedDevType);
 
   std::vector<cl::Platform> Platforms;
-  cl_int Err = cl::Platform::get(&Platforms);
-  CHIPERR_CHECK_LOG_AND_THROW(Err, CL_SUCCESS, hipErrorInitializationError);
-  std::cout << "\nFound " << Platforms.size() << " OpenCL platforms:\n";
+  cl_int err = cl::Platform::get(&Platforms);
+  CHIPERR_CHECK_LOG_AND_THROW(err, CL_SUCCESS, hipErrorInitializationError);
+  logTrace("\nFound {} OpenCL platforms:\n", Platforms.size());
   for (int i = 0; i < Platforms.size(); i++) {
-    std::cout << i << ". " << Platforms[i].getInfo<CL_PLATFORM_NAME>() << "\n";
+    logTrace("{}. {}\n", i, Platforms[i].getInfo<CL_PLATFORM_NAME>());
   }
 
-  std::cout << "OpenCL Devices of type " << CHIPDeviceTypeStr
-            << " with SPIR-V_1 support:\n";
+  logTrace("OpenCL Devices of type {} with SPIR-V_1 support:\n",
+	   CHIPDeviceTypeStr);
   std::vector<cl::Device> Devices;
-  for (auto Plat : Platforms) {
-    std::vector<cl::Device> Dev;
-    Err = Plat.getDevices(SelectedDevType, &Dev);
-    CHIPERR_CHECK_LOG_AND_THROW(Err, CL_SUCCESS, hipErrorInitializationError);
-    for (auto D : Dev) {
-      std::string Ver = D.getInfo<CL_DEVICE_IL_VERSION>(&Err);
-      if ((Err == CL_SUCCESS) && (Ver.rfind("SPIR-V_1.", 0) == 0)) {
-        std::cout << D.getInfo<CL_DEVICE_NAME>() << "\n";
-        Devices.push_back(D);
+  for (auto plat : Platforms) {
+    std::vector<cl::Device> dev;
+    err = plat.getDevices(SelectedDevType, &dev);
+    CHIPERR_CHECK_LOG_AND_THROW(err, CL_SUCCESS, hipErrorInitializationError);
+    for (auto d : dev) {
+      std::string ver = d.getInfo<CL_DEVICE_IL_VERSION>(&err);
+      if ((err == CL_SUCCESS) && (ver.rfind("SPIR-V_1.", 0) == 0)) {
+	logTrace("{}\n", d.getInfo<CL_DEVICE_NAME>());
+        Devices.push_back(d);
       }
     }
   }
@@ -906,7 +906,7 @@ void CHIPBackendOpenCL::initializeImpl(std::string CHIPPlatformStr,
     ChipContext->addQueue(Queue);
     Backend->addQueue(Queue);
   }
-  std::cout << "OpenCL Context Initialized.\n";
+  logTrace("OpenCL Context Initialized.\n");
 };
 
 void CHIPBackendOpenCL::uninitialize() {
