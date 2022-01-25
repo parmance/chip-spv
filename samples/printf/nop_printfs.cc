@@ -39,11 +39,11 @@ __global__ void nop_str_arg(int *out) {
   uint tid = hipThreadIdx_x + hipBlockIdx_x * hipBlockDim_x;
   printf("Howdy HIPpies!\n");
   out[tid] = printf("%s", ""); // Should be NOP except for the retval (1).
-  out[tid] += printf(""); // Should be NOP except for the retval (0).
+  out[tid] += printf("");      // Should be NOP except for the retval (0).
   out[tid] += printf("I'm correct since I'm not an empty string!\n");
 }
 
-int main(int argc, char* argv[]) {
+int main(int argc, char *argv[]) {
   uint num_threads = 1;
   uint failures = 0;
 
@@ -63,4 +63,3 @@ int main(int argc, char* argv[]) {
   }
   printf((failures == 0) ? "PASSED!\n" : "FAILED!\n");
 }
-

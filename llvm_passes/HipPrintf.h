@@ -33,8 +33,8 @@ private:
   Value* cloneStrArgToConstantAS(
     Value *StrArg, llvm::IRBuilder<>& B, bool *IsEmpty);
 
-  std::map<std::string, Constant*> LiteralArgs;
-  Module *M;
+  std::map<std::string, Constant*> LiteralArgs_;
+  Module *M_;
 };
 
 #endif

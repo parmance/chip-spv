@@ -57,7 +57,7 @@ __global__ void var_str_arg(int *out) {
   out[tid] += printf(" %s\n", strings);
 }
 
-int main(int argc, char* argv[]) {
+int main(int argc, char *argv[]) {
   uint num_threads = 1;
   uint failures = 0;
 
@@ -99,4 +99,3 @@ int main(int argc, char* argv[]) {
   }
   printf((failures == 0) ? "PASSED!\n" : "FAILED!\n");
 }
-

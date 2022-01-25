@@ -180,7 +180,7 @@ Value *HipPrintfToOpenCLPrintfPass::cloneStrArgToConstantAS(
   if (CE == nullptr)
     return nullptr;
 
-  Type *Int8Ty = IntegerType::get(M->getContext(), 8);
+  Type *Int8Ty = IntegerType::get(M_->getContext(), 8);
 
   Value *StrOpr = CE->getOperand(0);
 
@@ -215,14 +215,14 @@ Constant *
 HipPrintfToOpenCLPrintfPass::getOrCreateStrLiteralArg(const std::string &Str,
                                                       llvm::IRBuilder<> &B) {
 
-  auto &LiteralArg = LiteralArgs[Str];
+  auto &LiteralArg = LiteralArgs_[Str];
   if (LiteralArg != nullptr)
     return LiteralArg;
 
   auto *LiteralStr = B.CreateGlobalString(Str.c_str(), ".cl_printf_fmt_str",
                                           SPIRV_OPENCL_PRINTF_FMT_ARG_AS);
 
-  IntegerType *Int64Ty = Type::getInt64Ty(M->getContext());
+  IntegerType *Int64Ty = Type::getInt64Ty(M_->getContext());
   ConstantInt *Zero = ConstantInt::get(Int64Ty, 0);
   std::array<Constant *, 2> Indices = {Zero, Zero};
 
@@ -236,18 +236,18 @@ HipPrintfToOpenCLPrintfPass::getOrCreateStrLiteralArg(const std::string &Str,
 Function *HipPrintfToOpenCLPrintfPass::getOrCreatePrintStringF() {
 
   if (GlobalValue *OldPrintStrF =
-          M->getNamedValue(ORIG_PRINT_STRING_FUNC_NAME))
+          M_->getNamedValue(ORIG_PRINT_STRING_FUNC_NAME))
     return cast<Function>(OldPrintStrF);
 
-  auto *Int8Ty = IntegerType::get(M->getContext(), 8);
+  auto *Int8Ty = IntegerType::get(M_->getContext(), 8);
   PointerType *GenericCStrArgT =
       PointerType::get(Int8Ty, SPIRV_OPENCL_GENERIC_AS);
 
   FunctionType *PrintStrFTy = FunctionType::get(
-      Type::getVoidTy(M->getContext()), {GenericCStrArgT}, false);
+      Type::getVoidTy(M_->getContext()), {GenericCStrArgT}, false);
 
   FunctionCallee PrintStrF =
-      M->getOrInsertFunction(ORIG_PRINT_STRING_FUNC_NAME, PrintStrFTy);
+      M_->getOrInsertFunction(ORIG_PRINT_STRING_FUNC_NAME, PrintStrFTy);
   cast<Function>(PrintStrF.getCallee())
       ->setCallingConv(llvm::CallingConv::SPIR_FUNC);
   return cast<Function>(PrintStrF.getCallee());
@@ -256,8 +256,8 @@ Function *HipPrintfToOpenCLPrintfPass::getOrCreatePrintStringF() {
 PreservedAnalyses HipPrintfToOpenCLPrintfPass::run(Module &Mod,
                                                    ModuleAnalysisManager &AM) {
 
-  M = &Mod;
-  LiteralArgs.clear();
+  M_ = &Mod;
+  LiteralArgs_.clear();
 
   GlobalValue *Printf = Mod.getNamedValue("printf");
   GlobalValue *HipPrintf = Mod.getNamedValue(ORIG_PRINTF_FUNC_NAME);

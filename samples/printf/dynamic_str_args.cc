@@ -31,7 +31,7 @@ THE SOFTWARE.
 #include "hip/hip_runtime.h"
 #include "printf_tests_common.h"
 
-extern "C" __device__ void _cl_print_str(const char* s) {
+extern "C" __device__ void _cl_print_str(const char *s) {
   unsigned pos = 0;
   char c;
   while ((c = s[pos]) != 0) {
@@ -46,7 +46,7 @@ __global__ void conditional_string(int *io) {
   const char *dyn_a = "inout[0] was 1";
   const char *dyn_b = "inout[0] was something else than 1, it was";
   const char *str = nullptr;
-  
+
   if (io[0] == 1) {
     str = dyn_a;
   } else {
@@ -71,8 +71,7 @@ __global__ void host_defined_strings(int *io, const char *str) {
   io[0] += printf("## host defined string with skip: %s", str + 5);
 }
 
-
-int main(int argc, char* argv[]) {
+int main(int argc, char *argv[]) {
   uint num_threads = 1;
   uint failures = 0;
 
@@ -100,7 +99,7 @@ int main(int argc, char* argv[]) {
   memcpy(TrulyDynB, TrulyDyn, strlen(TrulyDyn) + 1);
 
   hipLaunchKernelGGL(host_defined_strings, dim3(1), dim3(1), 0, 0, io,
-		     TrulyDynB);
+                     TrulyDynB);
   hipStreamSynchronize(0);
 
   CHECK_GT(io[0], 1);
@@ -108,4 +107,3 @@ int main(int argc, char* argv[]) {
   printf((failures == 0) ? "PASSED!\n" : "FAILED!\n");
   return (failures == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 }
-

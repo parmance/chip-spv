@@ -873,7 +873,7 @@ void CHIPBackendOpenCL::initializeImpl(std::string CHIPPlatformStr,
   }
 
   logTrace("OpenCL Devices of type {} with SPIR-V_1 support:\n",
-	   CHIPDeviceTypeStr);
+           CHIPDeviceTypeStr);
   std::vector<cl::Device> Devices;
   for (auto plat : Platforms) {
     std::vector<cl::Device> dev;
@@ -882,7 +882,7 @@ void CHIPBackendOpenCL::initializeImpl(std::string CHIPPlatformStr,
     for (auto d : dev) {
       std::string ver = d.getInfo<CL_DEVICE_IL_VERSION>(&err);
       if ((err == CL_SUCCESS) && (ver.rfind("SPIR-V_1.", 0) == 0)) {
-	logTrace("{}\n", d.getInfo<CL_DEVICE_NAME>());
+        logTrace("{}\n", d.getInfo<CL_DEVICE_NAME>());
         Devices.push_back(d);
       }
     }
