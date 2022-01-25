@@ -84,6 +84,7 @@ GlobalVariable *findGlobalStr(Value *Arg) {
 
   if (auto GEP = dyn_cast<GetElementPtrInst>(Arg)) {
     Arg = GEP->getPointerOperand();
+    assert(GEP->hasAllZeroIndices());
   }
   if (auto ASCast = dyn_cast<AddrSpaceCastInst>(Arg)) {
     Arg = ASCast->getPointerOperand();
@@ -91,7 +92,7 @@ GlobalVariable *findGlobalStr(Value *Arg) {
     if (CE->getOpcode() == llvm::Instruction::AddrSpaceCast) {
       Arg = CE->getOperand(0);
     } else {
-      assert("Cannot handle the printf format string!" && false);
+      llvm_unreachable("Unexpected printf format string format!");
     }
   }
   return cast<GlobalVariable>(Arg);
@@ -145,24 +146,20 @@ getFormatStringPieces(Value *FmtStrArg, unsigned &NumberOfFormatSpecs) {
          // Without this we'd handle %%s wrongly.
          (Pos > 1 && FmtStr[Pos - 1] != '%')) {
     std::string TokenBefore = FmtStr.substr(0, Pos);
-    if (TokenBefore != "") {
+    if (TokenBefore != "")
       FmtStrPieces.push_back(TokenBefore);
-    }
     assert(FmtStr.size() > Pos + 2 - 1);
     FmtStr.erase(0, Pos + 2);
     FmtStrPieces.push_back("%s");
   }
-  if (FmtStr != "") {
+  if (FmtStr != "")
     FmtStrPieces.push_back(FmtStr);
-  }
   return FmtStrPieces;
 }
 
 std::string getCDSAsString(GlobalVariable *OrigStr, bool &IsEmpty) {
 
-  if (OrigStr == nullptr || !OrigStr->hasInitializer()) {
-    assert(OrigStr == nullptr || !OrigStr->hasInitializer());
-  }
+  assert(OrigStr != nullptr && OrigStr->hasInitializer());
 
   ConstantDataSequential *CDSInitializer =
       dyn_cast<ConstantDataSequential>(OrigStr->getInitializer());
@@ -198,19 +195,17 @@ Value *HipPrintfToOpenCLPrintfPass::cloneStrArgToConstantAS(
 // Checks if the GlobalVariable a literal string.
 bool isLiteralString(const GlobalVariable &Var) {
 
-  if (!Var.isConstant()) {
+  if (!Var.isConstant())
     return false;
-  }
 
   auto ArrayTy = dyn_cast<ArrayType>(Var.getType()->getElementType());
-  if (!ArrayTy) {
+  if (!ArrayTy)
     return false;
-  }
 
   auto IntTy = dyn_cast<IntegerType>(ArrayTy->getElementType());
-  if (!IntTy) {
+  if (!IntTy)
     return false;
-  }
+
   return IntTy->getBitWidth() == 8;
 }
 
@@ -224,8 +219,8 @@ HipPrintfToOpenCLPrintfPass::getOrCreateStrLiteralArg(const std::string &Str,
   if (LiteralArg != nullptr)
     return LiteralArg;
 
-  auto LiteralStr = B.CreateGlobalString(Str.c_str(), ".cl_printf_fmt_str",
-                                         SPIRV_OPENCL_PRINTF_FMT_ARG_AS);
+  auto *LiteralStr = B.CreateGlobalString(Str.c_str(), ".cl_printf_fmt_str",
+                                          SPIRV_OPENCL_PRINTF_FMT_ARG_AS);
 
   IntegerType *Int64Ty = Type::getInt64Ty(M->getContext());
   ConstantInt *Zero = ConstantInt::get(Int64Ty, 0);
@@ -241,9 +236,8 @@ HipPrintfToOpenCLPrintfPass::getOrCreateStrLiteralArg(const std::string &Str,
 Function *HipPrintfToOpenCLPrintfPass::getOrCreatePrintStringF() {
 
   if (GlobalValue *OldPrintStrF =
-          M->getNamedValue(ORIG_PRINT_STRING_FUNC_NAME)) {
+          M->getNamedValue(ORIG_PRINT_STRING_FUNC_NAME))
     return cast<Function>(OldPrintStrF);
-  }
 
   auto *Int8Ty = IntegerType::get(M->getContext(), 8);
   PointerType *GenericCStrArgT =
@@ -268,10 +262,10 @@ PreservedAnalyses HipPrintfToOpenCLPrintfPass::run(Module &Mod,
   GlobalValue *Printf = Mod.getNamedValue("printf");
   GlobalValue *HipPrintf = Mod.getNamedValue(ORIG_PRINTF_FUNC_NAME);
 
-  if (Printf == nullptr) {
-    // No printf decl in the module, no printf calls to handle.
+  // No printf decl in the module, no printf calls to handle.
+  if (Printf == nullptr)
     return PreservedAnalyses::all();
-  }
+
   Function *PrintfF = cast<Function>(Printf);
 
   LLVMContext &Ctx = Mod.getContext();
