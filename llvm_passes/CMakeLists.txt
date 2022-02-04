@@ -50,8 +50,8 @@ endif()
 
 if("${LLVM_VERSION}" VERSION_GREATER_EQUAL 11.0)
   add_library(LLVMHipPasses MODULE HipPasses.cpp
-    HipDynMem.cpp HipStripCompilerUsed.cpp HipTexture.cpp HipDefrost.cpp
-    HipPrintf.cpp HipGlobalVariables.cpp)
+    HipAbort.cpp HipDynMem.cpp HipStripCompilerUsed.cpp HipTexture.cpp
+    HipDefrost.cpp HipPrintf.cpp HipGlobalVariables.cpp)
 
   if("${LLVM_VERSION}" VERSION_GREATER_EQUAL 14.0)
     set_target_properties(LLVMHipPasses PROPERTIES
