@@ -21,6 +21,8 @@ add_custom_command( OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/BC/mathlib.bc"
 set(DEPEND_LIST "${CMAKE_CURRENT_BINARY_DIR}/BC/mathlib.bc")
 
 # Support function(s) for printf().
+# TODO: This is not yet used, but could be utilized for a more portable %s
+# implementation.
 add_custom_command( OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/BC/printf_support.bc"
                     DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/_cl_print_str.cl"
         COMMAND "${CMAKE_CXX_COMPILER}"
@@ -32,6 +34,19 @@ add_custom_command( OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/BC/printf_support.bc"
         COMMENT "Building printf_support.bc"
         VERBATIM)
 list(APPEND DEPEND_LIST "${CMAKE_CURRENT_BINARY_DIR}/BC/printf_support.bc")
+
+# Support function(s) for abort().
+add_custom_command( OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/BC/abort.bc"
+                    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/abort.cl"
+        COMMAND "${CMAKE_CXX_COMPILER}"
+        "${CLANG_CL_NO_STDINC_FLAG}" -Xclang -finclude-default-header
+        -O2 -x cl -cl-std=CL2.0
+        --target=spir64-unknown-unknown -emit-llvm
+        -o "${CMAKE_CURRENT_BINARY_DIR}/BC/abort.bc"
+        -c "${CMAKE_CURRENT_SOURCE_DIR}/abort.cl"
+        COMMENT "Building abort.bc"
+        VERBATIM)
+list(APPEND DEPEND_LIST "${CMAKE_CURRENT_BINARY_DIR}/BC/abort.bc")
 
 #add_custom_command( OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/BC/mathlib.bc"
 #                    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/mathlib.bc"

@@ -1,5 +1,6 @@
 // Define a pass plugin that runs a collection of HIP passes.
 
+#include "HipAbort.h"
 #include "HipDefrost.h"
 #include "HipDynMem.h"
 #include "HipTexture.h"
@@ -20,6 +21,7 @@ static void addFullLinkTimePasses(ModulePassManager &MPM) {
   MPM.addPass(HipTextureExternReplaceNewPass());
   MPM.addPass(HipPrintfToOpenCLPrintfPass());
   MPM.addPass(createModuleToFunctionPassAdaptor(HipDefrostPass()));
+  MPM.addPass(HipAbortPass());
   // This pass must appear after HipDynMemExternReplaceNewPass.
   MPM.addPass(HipGlobalVariablesPass());
 }
