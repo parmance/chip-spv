@@ -33,6 +33,47 @@
 #include "macros.hh"
 #include "CHIPException.hh"
 
+static inline size_t getChannelByteSize(hipChannelFormatDesc Desc) {
+  unsigned TotalNumBits = Desc.x + Desc.y + Desc.z + Desc.w;
+  return ((TotalNumBits + 7u) / 8u); // Round upwards.
+}
+
+/// Describes a memory region to copy from/to.
+class CHIPRegionDesc {
+public:
+  // Measured in bytes.
+  size_t ElementSize = 0;
+  // Measured in elements.
+  size_t Size[3] = {0};
+  // Measured in elements.
+  size_t Offset[3] = {0, 0, 0};
+  // Measured in elements.
+  size_t Pitch[2] = {1, 1};
+
+  static CHIPRegionDesc get3DRegion(size_t TheWidth, size_t TheHeight,
+                                    size_t TheDepth,
+                                    size_t ElementByteSize = 1) {
+    CHIPRegionDesc Result;
+    Result.ElementSize = ElementByteSize;
+    Result.Size[0] = TheWidth;
+    Result.Size[1] = TheHeight;
+    Result.Size[2] = TheDepth;
+    Result.Pitch[0] = TheWidth;
+    Result.Pitch[1] = TheWidth * TheHeight;
+    return Result;
+  }
+
+  static CHIPRegionDesc get2DRegion(size_t TheWidth, size_t TheHeight,
+                                    size_t ElementByteSize = 1) {
+    return get3DRegion(TheWidth, TheHeight, 0, ElementByteSize);
+  }
+
+  static CHIPRegionDesc get1DRegion(size_t TheWidth, size_t TheHeight,
+                                    size_t ElementByteSize = 1) {
+    return get2DRegion(TheWidth, 0, ElementByteSize);
+  }
+};
+
 class CHIPEventMonitor;
 
 enum class CHIPQueueType : unsigned int {
@@ -95,18 +136,8 @@ public:
 };
 
 class CHIPTexture {
-protected:
-  // delete default constructor since texture needs both image and sampler
-  CHIPTexture() = delete;
-
-  CHIPTexture(intptr_t Image, intptr_t Sampler)
-      : Image(Image), Sampler(Sampler) {}
-
 public:
-  intptr_t Image;
-  intptr_t Sampler;
-  hipTextureObject_t TexObj;
-  hipTextureObject_t get() { return TexObj; }
+  virtual ~CHIPTexture() {}
 };
 
 template <class T> std::string resultToString(T Err);
@@ -1498,7 +1529,6 @@ public:
 
   /************Factories***************/
 
-  virtual CHIPTexture *createCHIPTexture(intptr_t Image, intptr_t Sampler) = 0;
   virtual CHIPQueue *createCHIPQueue(CHIPDevice *ChipDev) = 0;
 
   /**
@@ -1706,10 +1736,6 @@ public:
   virtual void memCopy3DAsync(void *Dst, size_t DPitch, size_t DSPitch,
                               const void *Src, size_t SPitch, size_t SSPitch,
                               size_t Width, size_t Height, size_t Depth);
-
-  // Memory copy to texture object, i.e. image
-  virtual CHIPEvent *memCopyToTextureImpl(CHIPTexture *TexObj, void *Src) = 0;
-  virtual void memCopyToTexture(CHIPTexture *TexObj, void *Src);
 
   /**
    * @brief Submit a CHIPExecItem to this queue for execution. CHIPExecItem

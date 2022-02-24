@@ -560,11 +560,23 @@ int CHIPDevice::getAttr(hipDeviceAttribute_t Attr) {
   case hipDeviceAttributeMaxTexture1DWidth:
     return Prop.maxTexture1D;
     break;
+  case hipDeviceAttributeMaxTexture1DLinear:
+    return Prop.maxTexture1DLinear;
+    break;
   case hipDeviceAttributeMaxTexture2DWidth:
     return Prop.maxTexture2D[0];
     break;
   case hipDeviceAttributeMaxTexture2DHeight:
     return Prop.maxTexture2D[1];
+    break;
+    // For some reason HIP has single attribute for pitched memory
+    // instead of having separate attribute for width, height and
+    // pitch dimensions, like on Cuda.
+    //
+    // hipDeviceProp_t does not have maxTexture2DLinear like in
+    // Cuda. Use maxTexture2D.
+  case hipDeviceAttributeMaxTexture2DLinear:
+    return std::min<int>(Prop.maxTexture2D[0], Prop.maxTexture2D[1]);
     break;
   case hipDeviceAttributeMaxTexture3DWidth:
     return Prop.maxTexture3D[0];
@@ -1378,16 +1390,6 @@ void CHIPQueue::memCopy3DAsync(void *Dst, size_t DPitch, size_t DSPitch,
   ChipEvent->Msg = "memCopy3DAsync";
   updateLastEvent(ChipEvent);
 }
-void CHIPQueue::memCopyToTexture(CHIPTexture *TexObj, void *Src) {
-  std::lock_guard<std::mutex> Lock(Mtx);
-  std::lock_guard<std::mutex> LockEvents(Backend->EventsMtx);
-#ifdef ENFORCE_QUEUE_SYNC
-  ChipContext_->syncQueues(this);
-#endif
-  auto ChipEvent = memCopyToTextureImpl(TexObj, Src);
-  ChipEvent->Msg = "memCopyToTexture";
-  updateLastEvent(ChipEvent);
-}
 void CHIPQueue::launch(CHIPExecItem *ExecItem) {
   std::lock_guard<std::mutex> Lock(Mtx);
   std::lock_guard<std::mutex> LockEvents(Backend->EventsMtx);
@@ -1398,13 +1400,19 @@ void CHIPQueue::launch(CHIPExecItem *ExecItem) {
   ChipEvent->Msg = "launch";
   updateLastEvent(ChipEvent);
 
-  size_t NumArgs = ExecItem->getKernel()->getFuncInfo()->ArgTypeInfo.size();
-
+  auto &ArgTyInfos = ExecItem->getKernel()->getFuncInfo()->ArgTypeInfo;
   auto AllocTracker = Backend->getActiveDevice()->AllocationTracker;
   auto Args = ExecItem->getArgsPointer();
-  for (int i = 0; i < ExecItem->getNumArgs(); i++) {
-
-    void **k = reinterpret_cast<void **>(Args[i]);
+  unsigned InArgI = 0;
+  for (unsigned OutArgI = 0; OutArgI < ExecItem->getNumArgs(); OutArgI++) {
+    if (ArgTyInfos[OutArgI].Type == OCLType::Sampler) {
+      // Texture lowering pass splits hipTextureObject_t arguments to
+      // image and sampler arguments so there are additional
+      // arguments. Don't bump the InArgI when we see an additional
+      // argument.
+      continue;
+    }
+    void **k = reinterpret_cast<void **>(Args[InArgI++]);
     if (!k)
       continue;
     void *DevPtr = reinterpret_cast<void *>(*k);

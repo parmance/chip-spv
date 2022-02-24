@@ -31,8 +31,6 @@
 
 static unsigned NumBinariesLoaded = 0;
 
-#define SVM_ALIGNMENT 128 // TODO Pass as CMAKE Define?
-
 hipError_t hipPointerGetAttributes(hipPointerAttribute_t *attributes,
                                    const void *ptr) {
   UNIMPLEMENTED(hipErrorNotSupported);
@@ -1154,7 +1152,9 @@ static hipError_t hipMallocPitch3D(void **Ptr, size_t *Pitch, size_t Width,
   CHIPInitialize();
   NULLCHECK(Ptr, Pitch);
 
-  *Pitch = ((((int)Width - 1) / SVM_ALIGNMENT) + 1) * SVM_ALIGNMENT;
+  // Set pitch to allocation width for now to simplify texture support
+  // for pitched memory.
+  *Pitch = Width;
   const size_t SizeBytes = (*Pitch) * Height * ((Depth == 0) ? 1 : Depth);
 
   void *RetVal = Backend->getActiveContext()->allocate(SizeBytes);
@@ -1178,6 +1178,9 @@ hipError_t hipMallocPitch(void **Ptr, size_t *Pitch, size_t Width,
 
 hipError_t hipMallocArray(hipArray **Array, const hipChannelFormatDesc *Desc,
                           size_t Width, size_t Height, unsigned int Flags) {
+
+  // TODO: Sink the logic here into hipMalloc3DArray and call it when
+  // it is implemented.
   CHIP_TRY
   CHIPInitialize();
   NULLCHECK(Array, Desc);
@@ -1187,20 +1190,18 @@ hipError_t hipMallocArray(hipArray **Array, const hipChannelFormatDesc *Desc,
   *Array = new hipArray;
   ERROR_IF((*Array == nullptr), hipErrorOutOfMemory);
 
+  auto TexType = Height ? hipTextureType2D : hipTextureType1D;
   Array[0]->type = Flags;
   Array[0]->width = Width;
   Array[0]->height = Height;
-  Array[0]->depth = 1;
+  Array[0]->depth = 0;
   Array[0]->desc = *Desc;
   Array[0]->isDrv = false;
-  Array[0]->textureType = hipTextureType2D;
+  Array[0]->textureType = TexType;
   void **Ptr = &Array[0]->data;
 
-  size_t Size = Width;
-  if (Height > 0) {
-    Size = Size * Height;
-  }
-  const size_t AllocSize = Size * ((Desc->x + Desc->y + Desc->z + Desc->w) / 8);
+  size_t AllocSize =
+      Width * std::max<size_t>(Height, 1) * getChannelByteSize(*Desc);
 
   void *RetVal = Backend->getActiveContext()->allocate(AllocSize);
   ERROR_IF((RetVal == nullptr), hipErrorMemoryAllocation);
@@ -1676,14 +1677,7 @@ hipError_t hipMemcpyToArray(hipArray *Dst, size_t WOffset, size_t HOffset,
 hipError_t hipMemcpyFromArray(void *Dst, hipArray_const_t SrcArray,
                               size_t WOffset, size_t HOffset, size_t Count,
                               hipMemcpyKind Kind) {
-  CHIP_TRY
-  CHIPInitialize();
-  NULLCHECK(Dst, SrcArray);
-
-  void *SrcP = (unsigned char *)SrcArray->data + WOffset;
-  RETURN(hipMemcpy(Dst, SrcP, Count, Kind));
-
-  CHIP_CATCH
+  UNIMPLEMENTED(hipErrorNotSupported);
 }
 
 hipError_t hipMemcpyAtoH(void *Dst, hipArray *SrcArray, size_t SrcOffset,
@@ -1957,16 +1951,57 @@ hipCreateTextureObject(hipTextureObject_t *TexObject,
                        const struct hipResourceViewDesc *ResViewDesc) {
   CHIP_TRY
   CHIPInitialize();
-  NULLCHECK(TexObject, ResDesc, TexDesc, ResViewDesc);
+  NULLCHECK(TexObject, ResDesc, TexDesc);
 
-  CHIPTexture *ChipTex =
+  // Check the descriptions are valid.
+  switch (ResDesc->resType) {
+  default:
+    RETURN(hipErrorInvalidValue);
+  case hipResourceTypeArray: {
+    if (!ResDesc->res.array.array || !ResDesc->res.array.array->data)
+      RETURN(hipErrorInvalidValue);
+
+    break;
+  case hipResourceTypeLinear:
+    if (!ResDesc->res.linear.devPtr)
+      RETURN(hipErrorInvalidValue);
+
+    size_t MaxTexInTexels = Backend->getActiveDevice()->getAttr(
+        hipDeviceAttributeMaxTexture1DLinear);
+    size_t MaxTexInBytes =
+        MaxTexInTexels * getChannelByteSize(ResDesc->res.linear.desc);
+    if (ResDesc->res.linear.sizeInBytes > MaxTexInBytes)
+      RETURN(hipErrorInvalidValue);
+
+    break;
+  }
+  case hipResourceTypePitch2D: {
+    auto &Pitch2dDesc = ResDesc->res.pitch2D;
+    if (!Pitch2dDesc.devPtr)
+      RETURN(hipErrorInvalidValue);
+
+    size_t PitchInTexels =
+        Pitch2dDesc.pitchInBytes / getChannelByteSize(Pitch2dDesc.desc);
+    if (PitchInTexels < Pitch2dDesc.width)
+      RETURN(hipErrorInvalidValue);
+
+    size_t MaxDimSize = Backend->getActiveDevice()->getAttr(
+        hipDeviceAttributeMaxTexture2DLinear);
+    if (Pitch2dDesc.width > MaxDimSize || Pitch2dDesc.height > MaxDimSize ||
+        PitchInTexels > MaxDimSize)
+      RETURN(hipErrorInvalidValue);
+
+    break;
+  }
+  };
+
+  CHIPTexture *RetObj =
       Backend->getActiveDevice()->createTexture(ResDesc, TexDesc, ResViewDesc);
-  hipTextureObject_t RetObj = ChipTex->get();
   if (RetObj != nullptr) {
-    *TexObject = RetObj;
+    *TexObject = reinterpret_cast<hipTextureObject_t>(RetObj);
     RETURN(hipSuccess);
   } else
-    RETURN(hipErrorLaunchFailure);
+    RETURN(hipErrorInvalidValue);
   CHIP_CATCH
 }
 
@@ -1976,7 +2011,7 @@ hipError_t hipDestroyTextureObject(hipTextureObject_t TextureObject) {
   // TODO CRITCAL look into the define for hipTextureObject_t
   if (TextureObject == nullptr)
     RETURN(hipSuccess);
-  CHIPTexture *ChipTexture = (CHIPTexture *)&TextureObject;
+  CHIPTexture *ChipTexture = (CHIPTexture *)TextureObject;
   Backend->getActiveDevice()->destroyTexture(ChipTexture);
   RETURN(hipSuccess);
   CHIP_CATCH
