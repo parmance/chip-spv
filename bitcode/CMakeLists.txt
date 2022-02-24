@@ -18,16 +18,19 @@ add_custom_command( OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/BC/mathlib.bc"
         -c "${CMAKE_CURRENT_SOURCE_DIR}/mathlib.cl"
         COMMENT "Building mathlib.bc"
         VERBATIM)
-set(DEPEND_LIST "${CMAKE_CURRENT_BINARY_DIR}/BC/mathlib.bc")
+list(APPEND DEPEND_LIST "${CMAKE_CURRENT_BINARY_DIR}/BC/mathlib.bc")
 
-#add_custom_command( OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/BC/mathlib.bc"
-#                    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/mathlib.bc"
-#                    COMMAND "${CMAKE_COMMAND}" -E copy
-#                    "${CMAKE_CURRENT_SOURCE_DIR}/mathlib.bc"
-#                    "${CMAKE_CURRENT_BINARY_DIR}/BC/mathlib.bc"
-#                    COMMENT "Copying mathlib.bc"
-#                    VERBATIM)
-#set(DEPEND_LIST "${CMAKE_CURRENT_BINARY_DIR}/BC/mathlib.bc")
+add_custom_command( OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/BC/texture.bc"
+                    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/texture.cl"
+        COMMAND "${CMAKE_CXX_COMPILER}"
+        "${CLANG_CL_NO_STDINC_FLAG}" -Xclang -finclude-default-header
+        -O2 -x cl -cl-std=CL2.0
+        --target=spir64-unknown-unknown -emit-llvm
+        -o "${CMAKE_CURRENT_BINARY_DIR}/BC/texture.bc"
+        -c "${CMAKE_CURRENT_SOURCE_DIR}/texture.cl"
+        COMMENT "Building texture.bc"
+        VERBATIM)
+list(APPEND DEPEND_LIST "${CMAKE_CURRENT_BINARY_DIR}/BC/texture.bc")
 
 # kernellib sources
 
