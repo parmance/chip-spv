@@ -103,7 +103,13 @@ createSampler(CHIPDeviceLevel0 *ChipDev, const hipResourceDesc *PResDesc,
 
   // Identify the address mode
   ze_sampler_address_mode_t AddressMode = ZE_SAMPLER_ADDRESS_MODE_NONE;
-  if (PTexDesc->addressMode[0] == hipAddressModeWrap)
+  if (PResDesc->resType == hipResourceTypeLinear)
+    // "This [address mode] is ignored if cudaResourceDesc::resType is
+    // cudaResourceTypeLinear." - CUDA 11.6.1/CUDA Runtime API.
+    // Effectively out-of-bound references are undefined.
+    AddressMode = ZE_SAMPLER_ADDRESS_MODE_NONE;
+  else if (PTexDesc->addressMode[0] == hipAddressModeWrap)
+    // FIXME: The mode should be repeat.
     AddressMode = ZE_SAMPLER_ADDRESS_MODE_NONE;
   else if (PTexDesc->addressMode[0] == hipAddressModeClamp)
     AddressMode = ZE_SAMPLER_ADDRESS_MODE_CLAMP;
@@ -114,7 +120,11 @@ createSampler(CHIPDeviceLevel0 *ChipDev, const hipResourceDesc *PResDesc,
 
   // Identify the filter mode
   ze_sampler_filter_mode_t FilterMode = ZE_SAMPLER_FILTER_MODE_NEAREST;
-  if (PTexDesc->filterMode == hipFilterModePoint)
+  if (PResDesc->resType == hipResourceTypeLinear)
+    // "This [filter mode] is ignored if cudaResourceDesc::resType is
+    // cudaResourceTypeLinear." - CUDA 11.6.1/CUDA Runtime API.
+    FilterMode = ZE_SAMPLER_FILTER_MODE_NEAREST;
+  else if (PTexDesc->filterMode == hipFilterModePoint)
     FilterMode = ZE_SAMPLER_FILTER_MODE_NEAREST;
   else if (PTexDesc->filterMode == hipFilterModeLinear)
     FilterMode = ZE_SAMPLER_FILTER_MODE_LINEAR;
