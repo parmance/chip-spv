@@ -1944,6 +1944,37 @@ hipError_t hipLaunchKernel(const void *HostFunction, dim3 GridDim,
   CHIP_CATCH
 }
 
+static unsigned getNumTextureDimensions(const hipResourceDesc *ResDesc) {
+  switch (ResDesc->resType) {
+  default:
+    assert(false && "Unknown resource type.");
+    return 0;
+  case hipResourceTypeLinear:
+    return 1;
+  case hipResourceTypePitch2D:
+    return 2;
+  case hipResourceTypeArray: {
+    switch (ResDesc->res.array.array->textureType) {
+    default:
+      assert(false && "Unknown texture type.");
+      return 0;
+    case hipTextureType1D:
+    case hipTextureType1DLayered:
+      return 1;
+    case hipTextureType2D:
+    case hipTextureType2DLayered:
+    case hipTextureTypeCubemap:
+    case hipTextureTypeCubemapLayered:
+      return 2;
+    case hipTextureType3D:
+      return 3;
+    }
+  }
+  }
+  assert(false && "Unreachable.");
+  return 0;
+}
+
 hipError_t
 hipCreateTextureObject(hipTextureObject_t *TexObject,
                        const hipResourceDesc *ResDesc,
@@ -1953,7 +1984,7 @@ hipCreateTextureObject(hipTextureObject_t *TexObject,
   CHIPInitialize();
   NULLCHECK(TexObject, ResDesc, TexDesc);
 
-  // Check the descriptions are valid.
+  // Check the descriptions are valid and supported.
   switch (ResDesc->resType) {
   default:
     RETURN(hipErrorInvalidValue);
@@ -1962,7 +1993,8 @@ hipCreateTextureObject(hipTextureObject_t *TexObject,
       RETURN(hipErrorInvalidValue);
 
     break;
-  case hipResourceTypeLinear:
+  }
+  case hipResourceTypeLinear: {
     if (!ResDesc->res.linear.devPtr)
       RETURN(hipErrorInvalidValue);
 
@@ -1994,6 +2026,15 @@ hipCreateTextureObject(hipTextureObject_t *TexObject,
     break;
   }
   };
+
+  unsigned NumDims = getNumTextureDimensions(ResDesc);
+  bool AddrModeSupported =
+      (NumDims < 2 || TexDesc->addressMode[0] == TexDesc->addressMode[1]) &&
+      (NumDims < 3 || TexDesc->addressMode[0] == TexDesc->addressMode[2]);
+  if (!AddrModeSupported)
+    CHIPERR_LOG_AND_THROW(
+        "Heterogeneous texture addressing modes are not supported yet",
+        hipErrorTbd);
 
   CHIPTexture *RetObj =
       Backend->getActiveDevice()->createTexture(ResDesc, TexDesc, ResViewDesc);
