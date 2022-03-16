@@ -21,34 +21,41 @@ static ze_image_type_t getImageType(unsigned HipTextureID) {
   return ZE_IMAGE_TYPE_2D;
 }
 
+#define LAYOUT_KEY(_X, _Y, _Z, _W) (_W << 24 | _Z << 16 | _Y << 8 | _X)
+
+#define LAYOUT_KEY_FROM_FORMAT_DESC(_DESC)                                     \
+  LAYOUT_KEY(_DESC.x, _DESC.y, _DESC.z, _DESC.w)
+
+#define DEF_LAYOUT_MAP(_X, _Y, _Z, _W, _LAYOUT)                                \
+  case LAYOUT_KEY(_X, _Y, _Z, _W):                                             \
+    Result.layout = _LAYOUT;                                                   \
+    break
+
 static ze_image_format_t getImageFormat(hipChannelFormatDesc FormatDesc,
                                         bool Normalized) {
-  bool Supported = true;
-  Supported &= FormatDesc.x == 8 || FormatDesc.x == 16 || FormatDesc.x == 32;
-  // Not supported yet:
-  Supported &= FormatDesc.y == 0 && FormatDesc.z == 0 && FormatDesc.w == 0;
-
-  Supported &= FormatDesc.f == hipChannelFormatKindUnsigned ||
-               FormatDesc.f == hipChannelFormatKindSigned ||
-               FormatDesc.f == hipChannelFormatKindFloat;
-
+  bool Supported = FormatDesc.f == hipChannelFormatKindUnsigned ||
+                   FormatDesc.f == hipChannelFormatKindSigned ||
+                   FormatDesc.f == hipChannelFormatKindFloat;
   if (!Supported)
     CHIPERR_LOG_AND_THROW("Unsupported channel description.", hipErrorTbd);
 
+  assert(FormatDesc.x < (1 << 8) && FormatDesc.y < (1 << 8) &&
+         FormatDesc.z < (1 << 8) && FormatDesc.w < (1 << 8) && "Overlap");
+
   ze_image_format_t Result{};
-  switch (FormatDesc.x) {
+  switch (LAYOUT_KEY_FROM_FORMAT_DESC(FormatDesc)) {
   default:
-    assert(false && "Unsupported/unimplemented format layout.");
-    return Result;
-  case 8:
-    Result.layout = ZE_IMAGE_FORMAT_LAYOUT_8;
+    CHIPERR_LOG_AND_THROW("Unsupported channel description.", hipErrorTbd);
     break;
-  case 16:
-    Result.layout = ZE_IMAGE_FORMAT_LAYOUT_16;
-    break;
-  case 32:
-    Result.layout = ZE_IMAGE_FORMAT_LAYOUT_32;
-    break;
+    DEF_LAYOUT_MAP(8, 0, 0, 0, ZE_IMAGE_FORMAT_LAYOUT_8);
+    DEF_LAYOUT_MAP(8, 8, 0, 0, ZE_IMAGE_FORMAT_LAYOUT_8_8);
+    DEF_LAYOUT_MAP(8, 8, 8, 8, ZE_IMAGE_FORMAT_LAYOUT_8_8_8_8);
+    DEF_LAYOUT_MAP(16, 0, 0, 0, ZE_IMAGE_FORMAT_LAYOUT_16);
+    DEF_LAYOUT_MAP(16, 16, 0, 0, ZE_IMAGE_FORMAT_LAYOUT_16_16);
+    DEF_LAYOUT_MAP(16, 16, 16, 16, ZE_IMAGE_FORMAT_LAYOUT_16_16_16_16);
+    DEF_LAYOUT_MAP(32, 0, 0, 0, ZE_IMAGE_FORMAT_LAYOUT_32);
+    DEF_LAYOUT_MAP(32, 32, 0, 0, ZE_IMAGE_FORMAT_LAYOUT_32_32);
+    DEF_LAYOUT_MAP(32, 32, 32, 32, ZE_IMAGE_FORMAT_LAYOUT_32_32_32_32);
   }
 
   switch (FormatDesc.f) {
@@ -70,11 +77,15 @@ static ze_image_format_t getImageFormat(hipChannelFormatDesc FormatDesc,
 
   // These fields are for swizzle descriptions.
   Result.x = ZE_IMAGE_FORMAT_SWIZZLE_R;
-  Result.y = ZE_IMAGE_FORMAT_SWIZZLE_0;
-  Result.z = ZE_IMAGE_FORMAT_SWIZZLE_0;
-  Result.w = ZE_IMAGE_FORMAT_SWIZZLE_0;
+  Result.y = ZE_IMAGE_FORMAT_SWIZZLE_G;
+  Result.z = ZE_IMAGE_FORMAT_SWIZZLE_B;
+  Result.w = ZE_IMAGE_FORMAT_SWIZZLE_A;
   return Result;
 }
+
+#undef LAYOUT_KEY
+#undef LAYOUT_KEY_FROM_FORMAT_DESC
+#undef DEF_LAYOUT_MAP
 
 static ze_image_desc_t getImageDescription(unsigned int TextureType,
                                            hipChannelFormatDesc Format,

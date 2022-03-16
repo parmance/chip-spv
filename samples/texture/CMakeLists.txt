@@ -4,3 +4,5 @@ add_chip_test(hipTextureObj1DFetch hipTextureObj1DFetch PASSED
   hipTextureObj1DFetch.cpp)
 add_chip_test(hipTex1DFetchCheckModes hipTex1DFetchCheckModes PASSED
   hipTex1DFetchCheckModes.cpp)
+add_chip_test(hipTextureObjFetchVector hipTextureObjFetchVector PASSED
+  hipTextureObjFetchVector.cc)

@@ -12,7 +12,9 @@ typedef struct __hip_texture *hipTextureObject_t;
 // Texture function lowering pass (HipTextureLowering.cpp) use these
 // to recognize the texture function calls in kernels. The pass
 // replaces the calls to them with "_chip_*_impl" variant.
-float4 _chip_tex1df(hipTextureObject_t TextureObject, int Pos);
+int4 _chip_tex1dfetchi(hipTextureObject_t TextureObject, int Pos);
+uint4 _chip_tex1dfetchu(hipTextureObject_t TextureObject, int Pos);
+float4 _chip_tex1dfetchf(hipTextureObject_t TextureObject, int Pos);
 float4 _chip_tex2df(hipTextureObject_t TextureObject, float2 Pos);
 int4 _chip_tex2di(hipTextureObject_t TextureObject, float2 Pos);
 uint4 _chip_tex2du(hipTextureObject_t TextureObject, float2 Pos);
@@ -23,8 +25,18 @@ uint4 _chip_tex2du(hipTextureObject_t TextureObject, float2 Pos);
 //       The code ahead now assumes that non-normalized image formats
 //       are being used.
 
+int4 __attribute__((used))
+_chip_tex1dfetchi_impl(image1d_t I, sampler_t S, int Pos) {
+  return read_imagei(I, S, Pos);
+}
+
+uint4 __attribute__((used))
+_chip_tex1dfetchu_impl(image1d_t I, sampler_t S, int Pos) {
+  return read_imageui(I, S, Pos);
+}
+
 float4 __attribute__((used))
-_chip_tex1df_impl(image1d_t I, sampler_t S, int Pos) {
+_chip_tex1dfetchf_impl(image1d_t I, sampler_t S, int Pos) {
   return read_imagef(I, S, Pos);
 }
 
