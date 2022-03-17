@@ -6,3 +6,5 @@ add_chip_test(hipTex1DFetchCheckModes hipTex1DFetchCheckModes PASSED
   hipTex1DFetchCheckModes.cpp)
 add_chip_test(hipTextureObjFetchVector hipTextureObjFetchVector PASSED
   hipTextureObjFetchVector.cc)
+add_chip_test(hipNormalizedCoords hipNormalizedCoords PASSED
+  hipNormalizedCoords.cc)
