@@ -2058,6 +2058,18 @@ hipError_t hipDestroyTextureObject(hipTextureObject_t TextureObject) {
   CHIP_CATCH
 }
 
+hipError_t hipGetTextureObjectResourceDesc(hipResourceDesc *ResDesc,
+                                           hipTextureObject_t TextureObject) {
+  CHIP_TRY
+  CHIPInitialize();
+  if (TextureObject == nullptr)
+    RETURN(hipErrorInvalidValue);
+  CHIPTexture *ChipTexture = (CHIPTexture *)TextureObject;
+  *ResDesc = ChipTexture->getResourceDesc();
+  RETURN(hipSuccess);
+  CHIP_CATCH
+}
+
 hipError_t hipModuleLoad(hipModule_t *Module, const char *FuncName) {
   CHIP_TRY
   CHIPInitialize();

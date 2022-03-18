@@ -1185,7 +1185,7 @@ CHIPTexture *CHIPDeviceLevel0::createTexture(
         allocateImage(Array->textureType, Array->desc, NormalizeToFloat, Width,
                       Height, Depth));
 
-    auto *Tex = new CHIPTextureLevel0(ImageHandle, SamplerHandle);
+    auto *Tex = new CHIPTextureLevel0(*PResDesc, ImageHandle, SamplerHandle);
     logTrace("Created texture: {}", (void *)Tex);
 
     CHIPRegionDesc SrcDesc;
@@ -1219,7 +1219,7 @@ CHIPTexture *CHIPDeviceLevel0::createTexture(
     ze_image_handle_t ImageHandle = reinterpret_cast<ze_image_handle_t>(
         allocateImage(hipTextureType1D, Res.desc, NormalizeToFloat, Width));
 
-    auto *Tex = new CHIPTextureLevel0(ImageHandle, SamplerHandle);
+    auto *Tex = new CHIPTextureLevel0(*PResDesc, ImageHandle, SamplerHandle);
     logTrace("Created texture: {}", (void *)Tex);
 
     // Copy data to image.
@@ -1243,7 +1243,7 @@ CHIPTexture *CHIPDeviceLevel0::createTexture(
         allocateImage(hipTextureType2D, Res.desc, NormalizeToFloat, Res.width,
                       Res.height));
 
-    auto *Tex = new CHIPTextureLevel0(ImageHandle, SamplerHandle);
+    auto *Tex = new CHIPTextureLevel0(*PResDesc, ImageHandle, SamplerHandle);
     logTrace("Created texture: {}", (void *)Tex);
 
     // Copy data to image.

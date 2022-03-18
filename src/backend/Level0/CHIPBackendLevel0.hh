@@ -207,8 +207,9 @@ class CHIPTextureLevel0 : public CHIPTexture {
   ze_sampler_handle_t Sampler;
 
 public:
-  CHIPTextureLevel0(ze_image_handle_t TheImage, ze_sampler_handle_t TheSampler)
-      : CHIPTexture(), Image(TheImage), Sampler(TheSampler) {}
+  CHIPTextureLevel0(const hipResourceDesc &ResDesc, ze_image_handle_t TheImage,
+                    ze_sampler_handle_t TheSampler)
+      : CHIPTexture(ResDesc), Image(TheImage), Sampler(TheSampler) {}
 
   virtual ~CHIPTextureLevel0() {
     destroyImage(Image);

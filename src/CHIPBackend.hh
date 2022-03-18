@@ -136,8 +136,15 @@ public:
 };
 
 class CHIPTexture {
+  /// Resource description used to create this texture.
+  hipResourceDesc ResourceDesc;
+
 public:
+  CHIPTexture() = delete;
+  CHIPTexture(const hipResourceDesc &ResDesc) : ResourceDesc(ResDesc) {}
   virtual ~CHIPTexture() {}
+
+  const hipResourceDesc &getResourceDesc() const { return ResourceDesc; }
 };
 
 template <class T> std::string resultToString(T Err);
