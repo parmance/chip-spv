@@ -153,7 +153,7 @@ using TextureUseGroupMap = std::map<Value *, TextureUseGroup *>;
 static void analyze(Value *V, TextureUseGroup &TexUseGroup,
                     // For tracking already covered instructions (per kernel).
                     // Callers should not populate this map.
-                    TextureUseGroupMap TexUseGroupMap,
+                    TextureUseGroupMap &TexUseGroupMap,
                     // A edge which was followed to the 'V'.
                     // A analysis start point if nullptr.
                     Use *VisitEdge = nullptr) {
@@ -264,6 +264,7 @@ static TextureUseGroupList analyzeTextureObjectUses(Function &F) {
     if (TexUseGroupMap.count(StartPoint))
       continue;
     Result.emplace_back();
+    LLVM_DEBUG(dbgs() << "\n");
     analyze(StartPoint, Result.back(), TexUseGroupMap);
   }
 
@@ -338,23 +339,23 @@ static void lowerTextureObjectUses(Function *F,
       ArgsToExpand[Arg].push_back(SplArgPlaceholder);
 
       // Replace texture call with a call to the actual implementation.
-      CallInst *CI = *TexUseGroup.getTexFunctionCalls().begin();
+      for (auto *CI : TexUseGroup.getTexFunctionCalls()) {
+        auto *ImplF = M->getFunction(
+            (CI->getCalledFunction()->getName() + "_impl").str());
+        assert(ImplF);
+        // Create call to the actual implementation.
+        SmallVector<Value *, 4> CallArgs{ImgArgPlaceholder, SplArgPlaceholder};
+        // Copy the rest from the old call past the texture object argument.
+        for (unsigned I = 1, E = CI->arg_size(); I != E; I++)
+          CallArgs.push_back(CI->getArgOperand(I));
+        auto *NewCI =
+            CallInst::Create(ImplF->getFunctionType(), ImplF, CallArgs, "", CI);
+        // Calling convention is not inherited from the callee.
+        NewCI->setCallingConv(CallingConv::SPIR_FUNC);
 
-      auto *ImplF =
-          M->getFunction((CI->getCalledFunction()->getName() + "_impl").str());
-      assert(ImplF);
-      // Create call to the actual implementation.
-      SmallVector<Value *, 4> CallArgs{ImgArgPlaceholder, SplArgPlaceholder};
-      // Copy the rest from the old call past the texture object argument.
-      for (unsigned I = 1, E = CI->arg_size(); I != E; I++)
-        CallArgs.push_back(CI->getArgOperand(I));
-      auto *NewCI =
-          CallInst::Create(ImplF->getFunctionType(), ImplF, CallArgs, "", CI);
-      // Calling convention is not inherited from the callee.
-      NewCI->setCallingConv(CallingConv::SPIR_FUNC);
-
-      CI->replaceAllUsesWith(NewCI);
-      EraseList.push_back(CI);
+        CI->replaceAllUsesWith(NewCI);
+        EraseList.push_back(CI);
+      }
       continue;
     }
 
