@@ -41,14 +41,51 @@ static inline size_t getChannelByteSize(hipChannelFormatDesc Desc) {
 /// Describes a memory region to copy from/to.
 class CHIPRegionDesc {
 public:
+  static constexpr unsigned MaxNumDims = 3;
   // Measured in bytes.
   size_t ElementSize = 0;
+  // Measured in elements. [X, 0, 0] -> 1D, [X, Y, 0] -> 2D, [X, Y, Z] -> 3D.
+  size_t Size[MaxNumDims] = {0};
   // Measured in elements.
-  size_t Size[3] = {0};
-  // Measured in elements.
-  size_t Offset[3] = {0, 0, 0};
-  // Measured in elements.
-  size_t Pitch[2] = {1, 1};
+  size_t Offset[MaxNumDims] = {0, 0, 0};
+  // Row and slice pitch. Measured in bytes.
+  size_t Pitch[MaxNumDims - 1] = {1, 1};
+
+  std::string dumpAsString() const {
+    std::string Result =
+        "Size=(" + std::to_string(Size[0]) + ", " + std::to_string(Size[1]) +
+        ", " + std::to_string(Size[2]) + "), Offset=(" +
+        std::to_string(Offset[0]) + ", " + std::to_string(Offset[1]) + ", " +
+        std::to_string(Offset[2]) + "), Pitch=(" + std::to_string(Pitch[0]) +
+        "," + std::to_string(Pitch[1]) + ")";
+    return Result;
+  }
+
+  unsigned getNumDims() const {
+    unsigned Count = 0;
+    unsigned Idx = 0;
+    for (; Idx < MaxNumDims && Size[Idx]; Idx++)
+      Count++;
+#ifndef NDEBUG
+    // Check no non-zeroes after a zero (e.g. [X, 0, Z]).
+    for (; Idx < MaxNumDims; Idx++)
+      if (Size[Idx])
+        assert(false && "Invalid Size description.");
+#endif
+    return Count;
+  }
+
+  bool isPitched() const {
+    switch (getNumDims()) {
+    case 1:
+      return false;
+    case 2:
+      return Pitch[0] > Size[0] * ElementSize;
+    case 3:
+      return Pitch[0] > Size[0] * ElementSize &&
+             Pitch[1] > Size[1] * Size[0] * ElementSize;
+    }
+  }
 
   static CHIPRegionDesc get3DRegion(size_t TheWidth, size_t TheHeight,
                                     size_t TheDepth,
@@ -58,8 +95,8 @@ public:
     Result.Size[0] = TheWidth;
     Result.Size[1] = TheHeight;
     Result.Size[2] = TheDepth;
-    Result.Pitch[0] = TheWidth;
-    Result.Pitch[1] = TheWidth * TheHeight;
+    Result.Pitch[0] = TheWidth * ElementByteSize;
+    Result.Pitch[1] = TheWidth * TheHeight * ElementByteSize;
     return Result;
   }
 
@@ -71,6 +108,22 @@ public:
   static CHIPRegionDesc get1DRegion(size_t TheWidth, size_t TheHeight,
                                     size_t ElementByteSize = 1) {
     return get2DRegion(TheWidth, 0, ElementByteSize);
+  }
+
+  static CHIPRegionDesc from(const hipResourceDesc &ResDesc) {
+    switch (ResDesc.resType) {
+    default:
+      assert(false && "Unknown resource type");
+      return CHIPRegionDesc();
+    case hipResourceTypePitch2D: {
+      auto &Res = ResDesc.res.pitch2D;
+      auto R = get2DRegion(Res.width, Res.height, getChannelByteSize(Res.desc));
+      R.Pitch[0] = Res.pitchInBytes;
+      assert(Res.pitchInBytes >= Res.width * getChannelByteSize(Res.desc) &&
+             "Invalid pitch.");
+      return R;
+    }
+    }
   }
 };
 

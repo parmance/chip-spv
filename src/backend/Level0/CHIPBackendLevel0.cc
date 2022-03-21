@@ -693,11 +693,32 @@ CHIPEvent *CHIPQueueLevel0::memCopyToImage(ze_image_handle_t Image,
   CHIPEventLevel0 *Ev = (CHIPEventLevel0 *)Backend->createCHIPEvent(ChipCtxZe);
   Ev->Msg = "memCopyToImage";
 
-  // TODO: Handle subregion copies.
+  if (!SrcRegion.isPitched()) {
+    ze_result_t Status = zeCommandListAppendImageCopyFromMemory(
+        ZeCmdListImm_, Image, Src, 0, Ev->peek(), 0, nullptr);
+    CHIPERR_CHECK_LOG_AND_THROW(Status, ZE_RESULT_SUCCESS, hipErrorTbd);
+    return Ev;
+  }
 
-  ze_result_t Status = zeCommandListAppendImageCopyFromMemory(
-      ZeCmdListImm_, Image, Src, 0, Ev->peek(), 0, 0);
-  CHIPERR_CHECK_LOG_AND_THROW(Status, ZE_RESULT_SUCCESS, hipErrorTbd);
+  // Copy image data row by row since level zero does not have pitched copy.
+  assert(SrcRegion.getNumDims() == 2 &&
+         "UNIMPLEMENTED: 3D pitched image copy.");
+  const char *SrcRow = (const char *)Src;
+  for (size_t Row = 0; Row < SrcRegion.Size[1]; Row++) {
+    bool LastRow = Row == SrcRegion.Size[1] - 1;
+    ze_image_region_t DstZeRegion{};
+    DstZeRegion.originX = 0;
+    DstZeRegion.originY = Row;
+    DstZeRegion.originZ = 0;
+    DstZeRegion.width = SrcRegion.Size[0];
+    DstZeRegion.height = 1;
+    DstZeRegion.depth = 1;
+    ze_result_t Status = zeCommandListAppendImageCopyFromMemory(
+        ZeCmdListImm_, Image, SrcRow, &DstZeRegion,
+        LastRow ? Ev->peek() : nullptr, 0, nullptr);
+    CHIPERR_CHECK_LOG_AND_THROW(Status, ZE_RESULT_SUCCESS, hipErrorTbd);
+    SrcRow += SrcRegion.Pitch[0];
+  }
   return Ev;
 };
 
@@ -1236,9 +1257,6 @@ CHIPTexture *CHIPDeviceLevel0::createTexture(
 
     assert(Res.pitchInBytes >= Res.width); // Checked in CHIPBindings.
 
-    // Expectation for hipMallocPitch() to simplify things here for now.
-    assert(Res.width * TexelByteSize == Res.pitchInBytes);
-
     ze_image_handle_t ImageHandle = reinterpret_cast<ze_image_handle_t>(
         allocateImage(hipTextureType2D, Res.desc, NormalizeToFloat, Res.width,
                       Res.height));
@@ -1247,8 +1265,7 @@ CHIPTexture *CHIPDeviceLevel0::createTexture(
     logTrace("Created texture: {}", (void *)Tex);
 
     // Copy data to image.
-    auto SrcDesc =
-        CHIPRegionDesc::get2DRegion(Res.width, Res.height, TexelByteSize);
+    auto SrcDesc = CHIPRegionDesc::from(*PResDesc);
     Q->memCopyToImage(ImageHandle, Res.devPtr, SrcDesc);
     Q->finish(); // Finish for safety.
 

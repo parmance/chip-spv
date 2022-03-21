@@ -1,5 +1,7 @@
 add_chip_test(hipTextureObj2D hipTextureObj2D PASSED hipTextureObj2D.cpp)
 add_chip_test(hipTexObjPitch hipTexObjPitch PASSED hipTexObjPitch.cpp)
+add_chip_test(hipTexObjCustomPitch hipTexObjCustomPitch PASSED
+  hipTexObjCustomPitch.cc)
 add_chip_test(hipTextureObj1DFetch hipTextureObj1DFetch PASSED
   hipTextureObj1DFetch.cpp)
 add_chip_test(hipTex1DFetchCheckModes hipTex1DFetchCheckModes PASSED
