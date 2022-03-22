@@ -15,6 +15,9 @@ typedef struct __hip_texture *hipTextureObject_t;
 int4 _chip_tex1dfetchi(hipTextureObject_t TextureObject, int Pos);
 uint4 _chip_tex1dfetchu(hipTextureObject_t TextureObject, int Pos);
 float4 _chip_tex1dfetchf(hipTextureObject_t TextureObject, int Pos);
+int4 _chip_tex1di(hipTextureObject_t TextureObject, int Pos);
+uint4 _chip_tex1du(hipTextureObject_t TextureObject, int Pos);
+float4 _chip_tex1df(hipTextureObject_t TextureObject, int Pos);
 float4 _chip_tex2df(hipTextureObject_t TextureObject, float2 Pos);
 int4 _chip_tex2di(hipTextureObject_t TextureObject, float2 Pos);
 uint4 _chip_tex2du(hipTextureObject_t TextureObject, float2 Pos);
@@ -37,6 +40,21 @@ _chip_tex1dfetchu_impl(image1d_t I, sampler_t S, int Pos) {
 
 float4 __attribute__((used))
 _chip_tex1dfetchf_impl(image1d_t I, sampler_t S, int Pos) {
+  return read_imagef(I, S, Pos);
+}
+
+int4 __attribute__((used))
+_chip_tex1di_impl(image1d_t I, sampler_t S, float Pos) {
+  return read_imagei(I, S, Pos);
+}
+
+uint4 __attribute__((used))
+_chip_tex1du_impl(image1d_t I, sampler_t S, float Pos) {
+  return read_imageui(I, S, Pos);
+}
+
+float4 __attribute__((used))
+_chip_tex1df_impl(image1d_t I, sampler_t S, float Pos) {
   return read_imagef(I, S, Pos);
 }
 

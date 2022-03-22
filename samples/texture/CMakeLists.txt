@@ -12,3 +12,4 @@ add_chip_test(hipNormalizedCoords hipNormalizedCoords PASSED
   hipNormalizedCoords.cc)
 add_chip_test(hipNormalizedFloat hipNormalizedFloat PASSED
   hipNormalizedFloat.cc)
+add_chip_test(hipTextureObj1D hipTextureObj1D PASSED hipTextureObj1D.cc)

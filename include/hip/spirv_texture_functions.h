@@ -44,6 +44,15 @@ _chip_tex1dfetchu(hipTextureObject_t textureObject, int pos);
 extern "C" __device__ _native_float4
 _chip_tex1dfetchf(hipTextureObject_t textureObject, int pos);
 
+extern "C" __device__ _native_int4
+_chip_tex1di(hipTextureObject_t textureObject, float pos);
+
+extern "C" __device__ _native_uint4
+_chip_tex1du(hipTextureObject_t textureObject, float pos);
+
+extern "C" __device__ _native_float4
+_chip_tex1df(hipTextureObject_t textureObject, float pos);
+
 extern "C" __device__ _native_float4
 _chip_tex2df(hipTextureObject_t textureObject, _native_float2 pos);
 
@@ -118,6 +127,41 @@ DEF_TEX1D_VEC4(tex1Dfetch, int4, int, _chip_tex1dfetchi);
 DEF_TEX1D_VEC4(tex1Dfetch, uint4, int, _chip_tex1dfetchu);
 DEF_TEX1D_VEC4(tex1Dfetch, float4, int, _chip_tex1dfetchf);
 
+// tex1D //
+
+DEF_TEX1D_SCL(tex1D, char, float, _chip_tex1di);
+DEF_TEX1D_SCL(tex1D, unsigned char, float, _chip_tex1du);
+DEF_TEX1D_SCL(tex1D, short, float, _chip_tex1di);
+DEF_TEX1D_SCL(tex1D, unsigned short, float, _chip_tex1du);
+DEF_TEX1D_SCL(tex1D, int, float, _chip_tex1di);
+DEF_TEX1D_SCL(tex1D, unsigned int, float, _chip_tex1du);
+DEF_TEX1D_SCL(tex1D, float, float, _chip_tex1df);
+
+DEF_TEX1D_VEC1(tex1D, char1, float, _chip_tex1di);
+DEF_TEX1D_VEC1(tex1D, uchar1, float, _chip_tex1du);
+DEF_TEX1D_VEC1(tex1D, short1, float, _chip_tex1di);
+DEF_TEX1D_VEC1(tex1D, ushort1, float, _chip_tex1du);
+DEF_TEX1D_VEC1(tex1D, int1, float, _chip_tex1di);
+DEF_TEX1D_VEC1(tex1D, uint1, float, _chip_tex1du);
+DEF_TEX1D_VEC1(tex1D, float1, float, _chip_tex1df);
+
+DEF_TEX1D_VEC2(tex1D, char2, float, _chip_tex1di);
+DEF_TEX1D_VEC2(tex1D, uchar2, float, _chip_tex1du);
+DEF_TEX1D_VEC2(tex1D, short2, float, _chip_tex1di);
+DEF_TEX1D_VEC2(tex1D, ushort2, float, _chip_tex1du);
+DEF_TEX1D_VEC2(tex1D, int2, float, _chip_tex1di);
+DEF_TEX1D_VEC2(tex1D, uint2, float, _chip_tex1du);
+DEF_TEX1D_VEC2(tex1D, float2, float, _chip_tex1df);
+
+DEF_TEX1D_VEC4(tex1D, char4, float, _chip_tex1di);
+DEF_TEX1D_VEC4(tex1D, uchar4, float, _chip_tex1du);
+DEF_TEX1D_VEC4(tex1D, short4, float, _chip_tex1di);
+DEF_TEX1D_VEC4(tex1D, ushort4, float, _chip_tex1du);
+DEF_TEX1D_VEC4(tex1D, int4, float, _chip_tex1di);
+DEF_TEX1D_VEC4(tex1D, uint4, float, _chip_tex1du);
+DEF_TEX1D_VEC4(tex1D, float4, float, _chip_tex1df);
+
+
 // tex2D //
 
 __TEXTURE_FUNCTIONS_DECL__ void
@@ -185,6 +229,13 @@ __TEXTURE_FUNCTIONS_DECL__ T tex1Dfetch(hipTextureObject_t textureObject,
                                         int x) {
   T ret;
   tex1Dfetch(&ret, textureObject, x);
+  return ret;
+}
+
+template <class T>
+__TEXTURE_FUNCTIONS_DECL__ T tex1D(hipTextureObject_t textureObject, float x) {
+  T ret;
+  tex1D(&ret, textureObject, x);
   return ret;
 }
 
