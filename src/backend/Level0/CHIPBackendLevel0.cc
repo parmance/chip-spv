@@ -32,7 +32,7 @@ static ze_image_type_t getImageType(unsigned HipTextureID) {
     break
 
 static ze_image_format_t getImageFormat(hipChannelFormatDesc FormatDesc,
-                                        bool Normalized) {
+                                        bool NormalizedFloat) {
   bool Supported = FormatDesc.f == hipChannelFormatKindUnsigned ||
                    FormatDesc.f == hipChannelFormatKindSigned ||
                    FormatDesc.f == hipChannelFormatKindFloat;
@@ -58,17 +58,27 @@ static ze_image_format_t getImageFormat(hipChannelFormatDesc FormatDesc,
     DEF_LAYOUT_MAP(32, 32, 32, 32, ZE_IMAGE_FORMAT_LAYOUT_32_32_32_32);
   }
 
+  if (FormatDesc.x > 16 && (FormatDesc.f == hipChannelFormatKindUnsigned ||
+                            FormatDesc.f == hipChannelFormatKindSigned)) {
+    // "Note that this [cudaTextureReadMode] applies only to 8-bit and 16-bit
+    // integer formats. 32-bit integer format would not be promoted, regardless
+    // of whether or not this cudaTextureDesc::readMode is set
+    // cudaReadModeNormalizedFloat is specified."
+    // - CUDA 11.6.1/CUDA Runtime API.
+    NormalizedFloat = false;
+  }
+
   switch (FormatDesc.f) {
   default:
     assert(false && "Unsupported/unimplemented format type.");
     return Result;
   case hipChannelFormatKindSigned:
-    Result.type =
-        Normalized ? ZE_IMAGE_FORMAT_TYPE_SNORM : ZE_IMAGE_FORMAT_TYPE_SINT;
+    Result.type = NormalizedFloat ? ZE_IMAGE_FORMAT_TYPE_SNORM
+                                  : ZE_IMAGE_FORMAT_TYPE_SINT;
     break;
   case hipChannelFormatKindUnsigned:
-    Result.type =
-        Normalized ? ZE_IMAGE_FORMAT_TYPE_UNORM : ZE_IMAGE_FORMAT_TYPE_UINT;
+    Result.type = NormalizedFloat ? ZE_IMAGE_FORMAT_TYPE_UNORM
+                                  : ZE_IMAGE_FORMAT_TYPE_UINT;
     break;
   case hipChannelFormatKindFloat:
     Result.type = ZE_IMAGE_FORMAT_TYPE_FLOAT;
@@ -89,7 +99,7 @@ static ze_image_format_t getImageFormat(hipChannelFormatDesc FormatDesc,
 
 static ze_image_desc_t getImageDescription(unsigned int TextureType,
                                            hipChannelFormatDesc Format,
-                                           bool Normalized, size_t Width,
+                                           bool NormalizedFloat, size_t Width,
                                            size_t Height = 0,
                                            size_t Depth = 0) {
   ze_image_desc_t Result{};
@@ -97,7 +107,7 @@ static ze_image_desc_t getImageDescription(unsigned int TextureType,
   Result.pNext = nullptr;
   Result.flags = 0; // Read-only
   Result.type = getImageType(TextureType);
-  Result.format = getImageFormat(Format, Normalized);
+  Result.format = getImageFormat(Format, NormalizedFloat);
   Result.width = Width;
   Result.height = Height;
   Result.depth = Depth;       // L0 spec: Ignored for non-ZE_IMAGE_TYPE_3D;
@@ -1168,11 +1178,12 @@ CHIPQueue *CHIPDeviceLevel0::addQueueImpl(unsigned int Flags, int Priority) {
 
 ze_image_handle_t CHIPDeviceLevel0::allocateImage(unsigned int TextureType,
                                                   hipChannelFormatDesc Format,
-                                                  bool Normalized, size_t Width,
-                                                  size_t Height, size_t Depth) {
+                                                  bool NormalizedFloat,
+                                                  size_t Width, size_t Height,
+                                                  size_t Depth) {
   logTrace("CHIPContextLevel0::allocateImage()");
-  auto ImageDesc = getImageDescription(TextureType, Format, Normalized, Width,
-                                       Height, Depth);
+  auto ImageDesc = getImageDescription(TextureType, Format, NormalizedFloat,
+                                       Width, Height, Depth);
   ze_image_handle_t ImageHandle{};
 
   ze_result_t Status = zeImageCreate(ZeCtx_, ZeDev_, &ImageDesc, &ImageHandle);
@@ -1186,7 +1197,7 @@ CHIPTexture *CHIPDeviceLevel0::createTexture(
     const struct hipResourceViewDesc *PResViewDesc) {
   logTrace("CHIPDeviceLevel0::createTexture");
 
-  bool NormalizeToFloat = PTexDesc->readMode == hipReadModeNormalizedFloat;
+  bool NormalizedFloat = PTexDesc->readMode == hipReadModeNormalizedFloat;
   auto *Q = (CHIPQueueLevel0 *)getActiveQueue();
 
   ze_sampler_handle_t SamplerHandle =
@@ -1203,7 +1214,7 @@ CHIPTexture *CHIPDeviceLevel0::createTexture(
     size_t Depth = Array->depth;
 
     ze_image_handle_t ImageHandle = reinterpret_cast<ze_image_handle_t>(
-        allocateImage(Array->textureType, Array->desc, NormalizeToFloat, Width,
+        allocateImage(Array->textureType, Array->desc, NormalizedFloat, Width,
                       Height, Depth));
 
     auto *Tex = new CHIPTextureLevel0(*PResDesc, ImageHandle, SamplerHandle);
@@ -1238,7 +1249,7 @@ CHIPTexture *CHIPDeviceLevel0::createTexture(
     size_t Width = Res.sizeInBytes / TexelByteSize;
 
     ze_image_handle_t ImageHandle = reinterpret_cast<ze_image_handle_t>(
-        allocateImage(hipTextureType1D, Res.desc, NormalizeToFloat, Width));
+        allocateImage(hipTextureType1D, Res.desc, NormalizedFloat, Width));
 
     auto *Tex = new CHIPTextureLevel0(*PResDesc, ImageHandle, SamplerHandle);
     logTrace("Created texture: {}", (void *)Tex);
@@ -1258,7 +1269,7 @@ CHIPTexture *CHIPDeviceLevel0::createTexture(
     assert(Res.pitchInBytes >= Res.width); // Checked in CHIPBindings.
 
     ze_image_handle_t ImageHandle = reinterpret_cast<ze_image_handle_t>(
-        allocateImage(hipTextureType2D, Res.desc, NormalizeToFloat, Res.width,
+        allocateImage(hipTextureType2D, Res.desc, NormalizedFloat, Res.width,
                       Res.height));
 
     auto *Tex = new CHIPTextureLevel0(*PResDesc, ImageHandle, SamplerHandle);

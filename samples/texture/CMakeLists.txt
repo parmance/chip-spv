@@ -10,3 +10,5 @@ add_chip_test(hipTextureObjFetchVector hipTextureObjFetchVector PASSED
   hipTextureObjFetchVector.cc)
 add_chip_test(hipNormalizedCoords hipNormalizedCoords PASSED
   hipNormalizedCoords.cc)
+add_chip_test(hipNormalizedFloat hipNormalizedFloat PASSED
+  hipNormalizedFloat.cc)
