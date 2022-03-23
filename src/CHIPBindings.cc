@@ -1567,36 +1567,22 @@ hipError_t hipMemcpy2DToArrayAsync(hipArray *Dst, size_t WOffset,
                                    hipMemcpyKind Kind, hipStream_t Stream) {
   CHIP_TRY
   CHIPInitialize();
-  NULLCHECK(Dst, Src)
+  NULLCHECK(Dst, Src);
 
-  size_t ByteSize;
-  if (Dst) {
-    switch (Dst[0].desc.f) {
-    case hipChannelFormatKindSigned:
-      ByteSize = sizeof(int);
-      break;
-    case hipChannelFormatKindUnsigned:
-      ByteSize = sizeof(unsigned int);
-      break;
-    case hipChannelFormatKindFloat:
-      ByteSize = sizeof(float);
-      break;
-    case hipChannelFormatKindNone:
-      ByteSize = sizeof(size_t);
-      break;
-    }
-  } else {
+  if (!Dst)
     RETURN(hipErrorUnknown);
-  }
 
-  if ((WOffset + Width > (Dst->width * ByteSize)) || Width > SPitch) {
+  size_t ByteSize = getChannelByteSize(Dst->desc);
+
+  if ((WOffset + Width > (Dst->width * ByteSize)) || Width > SPitch)
     RETURN(hipErrorInvalidValue);
-  }
 
   size_t SrcW = SPitch;
   size_t DstW = (Dst->width) * ByteSize;
 
-  for (size_t Offset = 0; Offset < Height; ++Offset) {
+  // TODO: Use single command to do the pithed copy. Both the level
+  //       zero and the OpenCL has one.
+  for (size_t Offset = HOffset; Offset < Height; ++Offset) {
     void *DstP = ((unsigned char *)Dst->data + Offset * DstW);
     void *SrcP = ((unsigned char *)Src + Offset * SrcW);
     if (hipMemcpyAsync(DstP, SrcP, Width, Kind, Stream) != hipSuccess)
