@@ -93,6 +93,49 @@ _chip_tex2du(hipTextureObject_t textureObject, _native_float2 pos);
   }                                                                            \
   __asm__("")
 
+#define DEF_TEX2D_SCL(_NAME, _RES_TY, _IFN)                                    \
+  __TEXTURE_FUNCTIONS_DECL__ void _NAME(                                       \
+      _RES_TY *retVal, hipTextureObject_t textureObject, float x, float y) {   \
+    _native_float2 pos;                                                        \
+    pos.x = x;                                                                 \
+    pos.y = y;                                                                 \
+    *retVal = _IFN(textureObject, pos).x;                                      \
+  }                                                                            \
+  __asm__("")
+
+#define DEF_TEX2D_VEC1(_NAME, _RES_TY, _IFN)                                   \
+  __TEXTURE_FUNCTIONS_DECL__ void _NAME(                                       \
+      _RES_TY *retVal, hipTextureObject_t textureObject, float x, float y) {   \
+    _native_float2 pos;                                                        \
+    pos.x = x;                                                                 \
+    pos.y = y;                                                                 \
+    auto res = _IFN(textureObject, pos);                                       \
+    *retVal = make_##_RES_TY(res.x);                                           \
+  }                                                                            \
+  __asm__("")
+
+#define DEF_TEX2D_VEC2(_NAME, _RES_TY, _IFN)                                   \
+  __TEXTURE_FUNCTIONS_DECL__ void _NAME(                                       \
+      _RES_TY *retVal, hipTextureObject_t textureObject, float x, float y) {   \
+    _native_float2 pos;                                                        \
+    pos.x = x;                                                                 \
+    pos.y = y;                                                                 \
+    auto res = _IFN(textureObject, pos);                                       \
+    *retVal = make_##_RES_TY(res.x, res.y);                                    \
+  }                                                                            \
+  __asm__("")
+
+#define DEF_TEX2D_VEC4(_NAME, _RES_TY, _IFN)                                   \
+  __TEXTURE_FUNCTIONS_DECL__ void _NAME(                                       \
+      _RES_TY *retVal, hipTextureObject_t textureObject, float x, float y) {   \
+    _native_float2 pos;                                                        \
+    pos.x = x;                                                                 \
+    pos.y = y;                                                                 \
+    auto res = _IFN(textureObject, pos);                                       \
+    *retVal = make_##_RES_TY(res.x, res.y, res.z, res.y);                      \
+  }                                                                            \
+  __asm__("")
+
 // tex1DFetch //
 
 DEF_TEX1D_SCL(tex1Dfetch, char, int, _chip_tex1dfetchi);
@@ -161,66 +204,39 @@ DEF_TEX1D_VEC4(tex1D, int4, float, _chip_tex1di);
 DEF_TEX1D_VEC4(tex1D, uint4, float, _chip_tex1du);
 DEF_TEX1D_VEC4(tex1D, float4, float, _chip_tex1df);
 
-
 // tex2D //
 
-__TEXTURE_FUNCTIONS_DECL__ void
-tex2D(char *retVal, hipTextureObject_t textureObject, float x, float y) {
-  _native_float2 pos;
-  pos.x = x;
-  pos.y = y;
-  *retVal = _chip_tex2di(textureObject, pos).x;
-}
+DEF_TEX2D_SCL(tex2D, char, _chip_tex2di);
+DEF_TEX2D_SCL(tex2D, unsigned char, _chip_tex2du);
+DEF_TEX2D_SCL(tex2D, short, _chip_tex2di);
+DEF_TEX2D_SCL(tex2D, unsigned short, _chip_tex2du);
+DEF_TEX2D_SCL(tex2D, int, _chip_tex2di);
+DEF_TEX2D_SCL(tex2D, unsigned int, _chip_tex2du);
+DEF_TEX2D_SCL(tex2D, float, _chip_tex2df);
 
-__TEXTURE_FUNCTIONS_DECL__ void
-tex2D(short *retVal, hipTextureObject_t textureObject, float x, float y) {
-  _native_float2 pos;
-  pos.x = x;
-  pos.y = y;
-  *retVal = _chip_tex2di(textureObject, pos).x;
-}
+DEF_TEX2D_VEC1(tex2D, char1, _chip_tex2di);
+DEF_TEX2D_VEC1(tex2D, uchar1, _chip_tex2du);
+DEF_TEX2D_VEC1(tex2D, short1, _chip_tex2di);
+DEF_TEX2D_VEC1(tex2D, ushort1, _chip_tex2du);
+DEF_TEX2D_VEC1(tex2D, int1, _chip_tex2di);
+DEF_TEX2D_VEC1(tex2D, uint1, _chip_tex2du);
+DEF_TEX2D_VEC1(tex2D, float1, _chip_tex2df);
 
-__TEXTURE_FUNCTIONS_DECL__ void
-tex2D(int *retVal, hipTextureObject_t textureObject, float x, float y) {
-  _native_float2 pos;
-  pos.x = x;
-  pos.y = y;
-  *retVal = _chip_tex2di(textureObject, pos).x;
-}
+DEF_TEX2D_VEC2(tex2D, char2, _chip_tex2di);
+DEF_TEX2D_VEC2(tex2D, uchar2, _chip_tex2du);
+DEF_TEX2D_VEC2(tex2D, short2, _chip_tex2di);
+DEF_TEX2D_VEC2(tex2D, ushort2, _chip_tex2du);
+DEF_TEX2D_VEC2(tex2D, int2, _chip_tex2di);
+DEF_TEX2D_VEC2(tex2D, uint2, _chip_tex2du);
+DEF_TEX2D_VEC2(tex2D, float2, _chip_tex2df);
 
-__TEXTURE_FUNCTIONS_DECL__ void tex2D(unsigned char *retVal,
-                                      hipTextureObject_t textureObject, float x,
-                                      float y) {
-  _native_float2 pos;
-  pos.x = x;
-  pos.y = y;
-  *retVal = _chip_tex2du(textureObject, pos).x;
-}
-
-__TEXTURE_FUNCTIONS_DECL__ void tex2D(unsigned short *retVal,
-                                      hipTextureObject_t textureObject, float x,
-                                      float y) {
-  _native_float2 pos;
-  pos.x = x;
-  pos.y = y;
-  *retVal = _chip_tex2du(textureObject, pos).x;
-}
-
-__TEXTURE_FUNCTIONS_DECL__ void
-tex2D(unsigned *retVal, hipTextureObject_t textureObject, float x, float y) {
-  _native_float2 pos;
-  pos.x = x;
-  pos.y = y;
-  *retVal = _chip_tex2du(textureObject, pos).x;
-}
-
-__TEXTURE_FUNCTIONS_DECL__ void
-tex2D(float *retVal, hipTextureObject_t textureObject, float x, float y) {
-  _native_float2 pos;
-  pos.x = x;
-  pos.y = y;
-  *retVal = _chip_tex2df(textureObject, pos).x;
-}
+DEF_TEX2D_VEC4(tex2D, char4, _chip_tex2di);
+DEF_TEX2D_VEC4(tex2D, uchar4, _chip_tex2du);
+DEF_TEX2D_VEC4(tex2D, short4, _chip_tex2di);
+DEF_TEX2D_VEC4(tex2D, ushort4, _chip_tex2du);
+DEF_TEX2D_VEC4(tex2D, int4, _chip_tex2di);
+DEF_TEX2D_VEC4(tex2D, uint4, _chip_tex2du);
+DEF_TEX2D_VEC4(tex2D, float4, _chip_tex2df);
 
 // Public HIP Runtime API Bindings //
 
