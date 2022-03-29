@@ -198,7 +198,7 @@ void CHIPModule::compileOnce(CHIPDevice *ChipDevice) {
   std::call_once(Compiled_, &CHIPModule::compile, this, ChipDevice);
 }
 
-CHIPKernel *CHIPModule::getKernel(std::string Name) {
+CHIPKernel *CHIPModule::findKernel(const std::string &Name) {
   auto KernelFound = std::find_if(ChipKernels_.begin(), ChipKernels_.end(),
                                   [&Name](CHIPKernel *Kernel) {
                                     return Kernel->getName().compare(Name) == 0;
@@ -232,21 +232,17 @@ CHIPKernel *CHIPModule::getKernel(std::string Name) {
       return UniqueCandidate;
   }
 
-  if (KernelFound == ChipKernels_.end()) {
-    std::string Msg = "Failed to find kernel via kernel name: " + Name;
-    CHIPERR_LOG_AND_THROW(Msg, hipErrorLaunchFailure);
-  }
-
-  return *KernelFound;
+  return KernelFound != ChipKernels_.end() ? *KernelFound : nullptr;
 }
 
-bool CHIPModule::hasKernel(std::string Name) const {
-  auto KernelFound = std::find_if(ChipKernels_.begin(), ChipKernels_.end(),
-                                  [Name](CHIPKernel *Kernel) {
-                                    return Kernel->getName().compare(Name) == 0;
-                                  });
-  return KernelFound != ChipKernels_.end();
+CHIPKernel *CHIPModule::getKernel(std::string Name) {
+  if (auto *K = findKernel(Name))
+    return K;
+  std::string Msg = "Failed to find kernel via kernel name: " + Name;
+  CHIPERR_LOG_AND_THROW(Msg, hipErrorLaunchFailure);
 }
+
+bool CHIPModule::hasKernel(std::string Name) { return findKernel(Name); }
 
 CHIPKernel *CHIPModule::getKernel(const void *HostFPtr) {
   for (auto &Kernel : ChipKernels_)
@@ -271,9 +267,9 @@ CHIPDeviceVar *CHIPModule::getGlobalVar(const char *VarName) {
                                  return Var->getName().compare(VarName) == 0;
                                });
   if (VarFound == ChipVars_.end()) {
-    std::string Msg =
-        "Failed to find global variable by name: " + std::string(VarName);
-    CHIPERR_LOG_AND_THROW(Msg, hipErrorLaunchFailure);
+    logDebug("Failed to find global variable by name: {}",
+             std::string(VarName));
+    return nullptr;
   }
 
   return *VarFound;
