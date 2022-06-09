@@ -170,7 +170,6 @@ endif()
 # Workaround istead of trying to generate the CMake generator expression
 string (REPLACE ";" " " HIP_OFFLOAD_ARCH_STR "${HIP_OFFLOAD_ARCH}")
 
-
 # For building on top of HIP-COMMON
 target_compile_options(CHIP PUBLIC -D__HIP_PLATFORM_SPIRV__= ${CHIP_SPV_COMPILE_FLAGS})
 target_compile_definitions(CHIP PUBLIC ${CHIP_SPV_DEFINITIONS})
@@ -181,10 +180,13 @@ target_link_libraries(CHIP PUBLIC ${CHIP_SPV_LINK_FLAGS} ${PTHREAD_LIBRARY})
 
 # Previously these were set to SYSTEM which resulted in CMake picking up
 # OpenCL headers from the system where the version might differ resulting in errors.
-target_include_directories(CHIP 
+target_include_directories(CHIP
   PUBLIC
   "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
-  "$<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/HIP/include;${CMAKE_SOURCE_DIR}/include>"
+  "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/cuspv>"
+  "$<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/HIP/include>"
+  "$<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>"
+  "$<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include/cuspv>"
   PRIVATE
   "${CMAKE_SOURCE_DIR}/src"
   "${CMAKE_SOURCE_DIR}/include"
