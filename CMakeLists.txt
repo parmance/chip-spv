@@ -382,3 +382,8 @@ install(EXPORT CHIPTargets
 
 # CHIP-SPV INSTALLATION AND PACKAGING
 ###############################################################################
+
+# CHIP binaries
+######################################
+add_subdirectory(bin)
+
