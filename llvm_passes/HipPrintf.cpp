@@ -227,22 +227,25 @@ HipPrintfToOpenCLPrintfPass::getOrCreateStrLiteralArg(const std::string &Str,
   if (LiteralArg != nullptr)
     return LiteralArg;
 
-#if LLVM_VERSION_MAJOR <= 14
-  auto *LiteralStr = B.CreateGlobalString(Str.c_str(), ".cl_printf_fmt_str",
-                                          SPIRV_OPENCL_PRINTF_FMT_ARG_AS);
+#if LLVM_VERSION_MAJOR == 15
+  assert(B.getContext().hasSetOpaquePointersValue());
 
-  IntegerType *Int64Ty = Type::getInt64Ty(M_->getContext());
-  ConstantInt *Zero = ConstantInt::get(Int64Ty, 0);
-  std::array<Constant *, 2> Indices = {Zero, Zero};
+  if (B.getContext().supportsTypedPointers()) {
+#endif
+    GlobalVariable *LiteralStr = B.CreateGlobalString(Str.c_str(), ".cl_printf_fmt_str",
+                                            SPIRV_OPENCL_PRINTF_FMT_ARG_AS);
 
-  PointerType *PtrTy =
-      cast<PointerType>(LiteralStr->getType()->getScalarType());
+    IntegerType *Int64Ty = Type::getInt64Ty(M_->getContext());
+    ConstantInt *Zero = ConstantInt::get(Int64Ty, 0);
+    std::array<Constant *, 2> Indices = {Zero, Zero};
 
-  return LiteralArg = llvm::ConstantExpr::getGetElementPtr(
-             PtrTy->getElementType(), LiteralStr, Indices);
-#else
-  return B.CreateGlobalString(Str.c_str(), ".cl_printf_fmt_str",
+    return LiteralArg = llvm::ConstantExpr::getGetElementPtr(
+               LiteralStr->getValueType(), LiteralStr, Indices);
+#if LLVM_VERSION_MAJOR == 15
+  } else {
+    return B.CreateGlobalString(Str.c_str(), ".cl_printf_fmt_str",
                               SPIRV_OPENCL_PRINTF_FMT_ARG_AS);
+  }
 #endif
 }
 
@@ -276,9 +279,12 @@ static Function* getCalledFunction(CallInst *CI, const LLVMContext &Ctx) {
     return nullptr;
   // A call with mismatched call signature.
 
-#if LLVM_VERSION_MAJOR > 14
-  if (Ctx.hasSetOpaquePointersValue())
+#if LLVM_VERSION_MAJOR == 15
+  assert(Ctx.hasSetOpaquePointersValue());
+
+  if (!Ctx.supportsTypedPointers()) {
     return cast<Function>(CI->getCalledOperand());
+  }
 #endif
 
   auto *CalledOp = dyn_cast<ConstantExpr>(CI->getCalledOperand());
