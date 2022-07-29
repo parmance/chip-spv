@@ -1,15 +1,19 @@
 
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/BC")
 
-# Ugly fix for interactions between clang13+ and igc
-if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 13)
-  set(CLANG_CL_NO_STDINC_FLAG "")
-else()
-  set(CLANG_CL_NO_STDINC_FLAG "-cl-no-stdinc")
-endif()
-
 if(NOT DEFINED LLVM_VERSION)
   message(FATAL "Could not determine LLVM version.")
+endif()
+
+set(EXTRA_FLAGS)
+# Ugly fix for interactions between clang13+ and igc
+if(NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 13)
+  list(APPEND EXTRA_FLAGS "-cl-no-stdinc")
+endif()
+
+# disable opaque pointers for LLVM 15 only
+if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 15.0.0 AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 16.0.0)
+  list(APPEND EXTRA_FLAGS "-Xclang" "-no-opaque-pointers")
 endif()
 
 if("${LLVM_VERSION}" VERSION_LESS 14.0)
@@ -25,53 +29,34 @@ else()
   set(BC_DESTINATION lib/hip-device-lib)
 endif()
 
-add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/BC/devicelib.bc"
-  DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/devicelib.cl"
-  COMMAND "${CMAKE_CXX_COMPILER}"
-  "${CLANG_CL_NO_STDINC_FLAG}" -Xclang -finclude-default-header
-  -O2 -x cl -cl-std=CL2.0
-  --target=${BC_TRIPLE} -emit-llvm
-  -o "${CMAKE_CURRENT_BINARY_DIR}/BC/devicelib.bc"
-  -c "${CMAKE_CURRENT_SOURCE_DIR}/devicelib.cl"
-  COMMENT "Building devicelib.bc"
-  VERBATIM)
-list(APPEND DEPEND_LIST "${CMAKE_CURRENT_BINARY_DIR}/BC/devicelib.bc")
+# non-OCML sources
+set(NON_OCML_SOURCES "devicelib" "_cl_print_str" "texture") # "printf_support"
 
-# Support function(s) for printf().
-add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/BC/printf_support.bc"
-  DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/_cl_print_str.cl"
-  COMMAND "${CMAKE_CXX_COMPILER}"
-  "${CLANG_CL_NO_STDINC_FLAG}" -Xclang -finclude-default-header
-  -O2 -x cl -cl-std=CL2.0
-  --target=spir64-unknown-unknown -emit-llvm
-  -o "${CMAKE_CURRENT_BINARY_DIR}/BC/printf_support.bc"
-  -c "${CMAKE_CURRENT_SOURCE_DIR}/_cl_print_str.cl"
-  COMMENT "Building printf_support.bc"
-  VERBATIM)
-list(APPEND DEPEND_LIST "${CMAKE_CURRENT_BINARY_DIR}/BC/printf_support.bc")
+foreach(SOURCE IN LISTS NON_OCML_SOURCES)
+  add_custom_command(
+    OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/BC/${SOURCE}.bc"
+    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/${SOURCE}.cl"
+    COMMAND "${CMAKE_CXX_COMPILER}"
+    ${EXTRA_FLAGS} -Xclang -finclude-default-header
+    -O2 -x cl -cl-std=CL2.0
+    --target=${BC_TRIPLE} -emit-llvm
+    -o "${CMAKE_CURRENT_BINARY_DIR}/BC/${SOURCE}.bc"
+    -c "${CMAKE_CURRENT_SOURCE_DIR}/${SOURCE}.cl"
+    COMMENT "Building ${SOURCE}.bc"
+    VERBATIM)
+  list(APPEND DEPEND_LIST "${CMAKE_CURRENT_BINARY_DIR}/BC/${SOURCE}.bc")
+endforeach()
 
-add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/BC/texture.bc"
-  DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/texture.cl"
-  COMMAND "${CMAKE_CXX_COMPILER}"
-  "${CLANG_CL_NO_STDINC_FLAG}" -Xclang -finclude-default-header
-  -O2 -x cl -cl-std=CL2.0
-  --target=${BC_TRIPLE} -emit-llvm
-  -o "${CMAKE_CURRENT_BINARY_DIR}/BC/texture.bc"
-  -c "${CMAKE_CURRENT_SOURCE_DIR}/texture.cl"
-  COMMENT "Building texture.bc"
-  VERBATIM)
-list(APPEND DEPEND_LIST "${CMAKE_CURRENT_BINARY_DIR}/BC/texture.bc")
+# OCML sources
+set(OCML_SOURCES erfcinvD erfcinvF erfcxD erfcxF erfinvD erfinvF i0D i0F i1D i1F j0D j0F j1D j1F ncdfD ncdfF ncdfinvD ncdfinvF nearbyintD nearbyintF rcbrtD rcbrtF rhypotF rhypotD rlen3D rlen3F rlen4D rlen4F scalbD scalbF scalbnD scalbnF tables y0D y0F y1D y1F)
 
-# devicelib sources
-set(SOURCES erfcinvD erfcinvF erfcxD erfcxF erfinvD erfinvF i0D i0F i1D i1F j0D j0F j1D j1F ncdfD ncdfF ncdfinvD ncdfinvF nearbyintD nearbyintF rcbrtD rcbrtF rhypotF rhypotD rlen3D rlen3F rlen4D rlen4F scalbD scalbF scalbnD scalbnF tables y0D y0F y1D y1F)
-
-foreach(SOURCE IN LISTS SOURCES)
+foreach(SOURCE IN LISTS OCML_SOURCES)
   add_custom_command(
     OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/BC/${SOURCE}.bc"
     DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/OCML/${SOURCE}.cl"
     COMMAND "${CMAKE_CXX_COMPILER}"
-    "${CLANG_CL_NO_STDINC_FLAG}" -Xclang -finclude-default-header
-    -O2 -pthread -x cl -cl-std=CL2.0
+    ${EXTRA_FLAGS} -Xclang -finclude-default-header
+    -O2 -x cl -cl-std=CL2.0
     --target=${BC_TRIPLE} -emit-llvm
     -o "${CMAKE_CURRENT_BINARY_DIR}/BC/${SOURCE}.bc"
     -c "${CMAKE_CURRENT_SOURCE_DIR}/OCML/${SOURCE}.cl"
