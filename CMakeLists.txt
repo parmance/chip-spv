@@ -93,6 +93,11 @@ if((CMAKE_CXX_COMPILER_ID MATCHES "[Cc]lang") OR(CMAKE_CXX_COMPILER_ID MATCHES "
             Support for Clang < 14.0 will be discontinued in the future.")
     set(CLANG_VERSION_LESS_14 ON)
   endif()
+
+  if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 15.0.0 AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 16.0.0)
+    set(CLANG_VERSION_IS_15 ON)
+  endif()
+
 else()
   message(FATAL_ERROR "this project must be compiled with clang. CMAKE_CXX_COMPILER_ID = ${CMAKE_CXX_COMPILER_ID}")
 endif()
@@ -217,6 +222,9 @@ target_include_directories(CHIP
 ###############################################################################
 # HIP OFFLOAD FLAGS
 set(HIP_OFFLOAD_COMPILE_ONLY_OPTIONS_ -x hip --target=x86_64-linux-gnu ${SPIRV_EMITTER_OPTS})
+if(CLANG_VERSION_IS_15)
+  list(APPEND HIP_OFFLOAD_COMPILE_ONLY_OPTIONS_ "-Xclang" "-no-opaque-pointers")
+endif()
 
 # hipDeviceLink sample requires --offload=spirv64 flag at link time. Why? 
 if(NOT CLANG_VERSION_LESS_14)
