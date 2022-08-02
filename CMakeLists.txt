@@ -182,16 +182,10 @@ set(PTHREAD_LIBRARY Threads::Threads)
 add_subdirectory(llvm_passes)
 add_subdirectory(bitcode)
 
-enable_testing()
-add_subdirectory(HIP/tests/catch catch)
-add_subdirectory(tests/cuda)
-add_subdirectory(./samples samples)
-
 # Make CHIP depend on devicelib_bc and LLVMHipPasses for
 # convenience. The CHIP module itself does not depend on these but
 # HIP program compilation does.
 add_dependencies(CHIP devicelib_bc LLVMHipPasses)
-add_dependencies(samples CHIP)
 # CHIP-SPV CMAKE DEPENDENCIES
 ###############################################################################
 
@@ -392,3 +386,8 @@ install(EXPORT CHIPTargets
 ######################################
 add_subdirectory(bin)
 
+enable_testing()
+add_subdirectory(HIP/tests/catch catch)
+add_subdirectory(tests/cuda)
+add_subdirectory(./samples samples)
+add_dependencies(samples CHIP)
