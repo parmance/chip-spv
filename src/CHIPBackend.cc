@@ -457,10 +457,6 @@ CHIPQueue *CHIPExecItem::getQueue() { return ChipQueue_; }
 CHIPDevice::CHIPDevice(CHIPContext *Ctx, int DeviceIdx)
     : Ctx_(Ctx), Idx_(DeviceIdx) {}
 
-CHIPDevice::CHIPDevice() {
-  logDebug("Device {} is {}: name \"{}\" \n", Idx_, (void *)this,
-           HipDeviceProps_.name);
-}
 CHIPDevice::~CHIPDevice() {}
 
 std::vector<CHIPKernel *> CHIPDevice::getKernels() {
@@ -479,17 +475,17 @@ CHIPDevice::getModules() {
 }
 
 std::string CHIPDevice::getName() {
-  populateDeviceProperties();
   return std::string(HipDeviceProps_.name);
 }
 
-void CHIPDevice::populateDeviceProperties() {
+void CHIPDevice::init() {
   std::call_once(PropsPopulated_, &CHIPDevice::populateDevicePropertiesImpl,
                  this);
   if (!AllocationTracker)
     AllocationTracker = new CHIPAllocationTracker(
         HipDeviceProps_.totalGlobalMem, HipDeviceProps_.name);
 }
+
 void CHIPDevice::copyDeviceProperties(hipDeviceProp_t *Prop) {
   logDebug("CHIPDevice->copy_device_properties()");
   if (Prop)
@@ -890,7 +886,6 @@ size_t CHIPDevice::getUsedGlobalMem() {
 }
 
 bool CHIPDevice::hasPCIBusId(int PciDomainID, int PciBusID, int PciDeviceID) {
-  populateDeviceProperties();
   auto T1 = this->HipDeviceProps_.pciBusID == PciBusID;
   auto T2 = this->HipDeviceProps_.pciDomainID == PciDomainID;
   auto T3 = this->HipDeviceProps_.pciDeviceID == PciDeviceID;
