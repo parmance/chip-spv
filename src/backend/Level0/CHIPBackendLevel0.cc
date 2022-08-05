@@ -1556,6 +1556,7 @@ void CHIPDeviceLevel0::populateDevicePropertiesImpl() {
 
   HipDeviceProps_.multiProcessorCount =
       ZeDeviceProps_.numEUsPerSubslice *
+      ZeDeviceProps_.numSubslicesPerSlice *
       ZeDeviceProps_.numSlices; // DeviceComputeProps.maxTotalGroupSize;
   //??? Dev.getInfo<CL_DEVICE_MAX_COMPUTE_UNITS>();
   HipDeviceProps_.l2CacheSize = DeviceCacheProps.cacheSize;
