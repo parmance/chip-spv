@@ -21,6 +21,7 @@
 #include "HipGlobalVariables.h"
 #include "HipTextureLowering.h"
 #include "HipEmitLoweredNames.h"
+#include "LLVMSPIRV.h"
 
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Passes/PassPlugin.h"
@@ -28,6 +29,7 @@
 #include "llvm/Transforms/Scalar/DCE.h"
 #include "llvm/Transforms/IPO/GlobalDCE.h"
 #include "llvm/Transforms/Scalar/SROA.h"
+#include "llvm/Transforms/Scalar/InferAddressSpaces.h"
 
 
 using namespace llvm;
@@ -72,6 +74,7 @@ public:
     // Altering OpenCL metadata probably does not invalidate any analyses.
     return PreservedAnalyses::all();
   }
+
   static bool isRequired() { return true; }
 };
 
@@ -114,6 +117,7 @@ static void addFullLinkTimePasses(ModulePassManager &MPM) {
   MPM.addPass(createModuleToFunctionPassAdaptor(DCEPass()));
   MPM.addPass(GlobalDCEPass());
 
+  MPM.addPass(createModuleToFunctionPassAdaptor(InferAddressSpacesPass(SPIRV_GENERIC_AS)));
   MPM.addPass(HipFixOpenCLMDPass());
 }
 
